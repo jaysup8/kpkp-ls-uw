@@ -16,6 +16,7 @@ export interface StockItem {
   parLevel: number
   costPerUnit: number
   active: boolean
+  branches?: Branch[]  // undefined = all branches; set to restrict to specific branches
 }
 
 export interface DailyStockRecord {

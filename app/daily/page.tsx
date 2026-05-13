@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { getItems, getStockRecords, saveAllStockRecords, getSelectedBranch } from '@/lib/storage'
 import { parseStockText } from '@/lib/parseStock'
 import type { ParseResult } from '@/lib/parseStock'
+import { generateOrderText } from '@/lib/orderText'
 import type { StockItem, DailyStockRecord, Branch } from '@/lib/types'
 import { BRANCH_NAMES } from '@/lib/types'
 
@@ -16,7 +17,7 @@ function makeId() {
 }
 
 // Items where user inputs ต้องสั่งเพิ่ม directly (no closing stock concept)
-const ORDER_MODE_IDS = new Set(['r12', 'r13', 'r15', 'r16', 'r17', 'r18', 'r19', 'r20'])
+const ORDER_MODE_IDS = new Set(['r12', 'r13', 'r15', 'r16', 'r17', 'r18', 'r19', 'r20', 'r21', 'r22'])
 
 type RowState = {
   itemId: string
@@ -49,6 +50,11 @@ export default function DailyPage() {
   // monthlyOrderMap: itemId → total ต้องสั่งเพิ่ม for previous days in this month
   const [monthlyOrderMap, setMonthlyOrderMap] = useState<Record<string, number>>({})
 
+  // Order text modal
+  const [showOrderText, setShowOrderText] = useState(false)
+  const [orderTextContent, setOrderTextContent] = useState('')
+  const [copied, setCopied] = useState(false)
+
   // Paste modal
   const [showPaste, setShowPaste] = useState(false)
   const [pasteStep, setPasteStep] = useState<PasteStep>('input')
@@ -59,7 +65,7 @@ export default function DailyPage() {
     const b = getSelectedBranch()
     if (!b) { router.push('/'); return }
     setBranch(b)
-    const allItems = getItems().filter(i => i.active)
+    const allItems = getItems().filter(i => i.active && (!i.branches || i.branches.includes(b)))
     setItems(allItems)
 
     // Load today's saved values
@@ -124,6 +130,16 @@ export default function DailyPage() {
     setSaved(true)
   }
 
+  function handleGenerateOrderText() {
+    if (!branch) return
+    const orderMap: Record<string, number> = {}
+    for (const row of rows) orderMap[row.itemId] = row.orderAmount
+    const text = generateOrderText(date, branch, orderMap)
+    setOrderTextContent(text)
+    setCopied(false)
+    setShowOrderText(true)
+  }
+
   function openPaste() {
     setPasteText('')
     setPasteStep('input')
@@ -176,6 +192,12 @@ export default function DailyPage() {
           <p className="text-xs text-slate-400">Daily Stock Entry</p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleGenerateOrderText}
+            className="border border-slate-300 bg-white text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:border-emerald-400 hover:text-emerald-600 transition-colors"
+          >
+            📝 สร้างข้อความสั่งซื้อ
+          </button>
           <button
             onClick={openPaste}
             className="border border-slate-300 bg-white text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:border-blue-400 hover:text-blue-600 transition-colors"
@@ -298,6 +320,39 @@ export default function DailyPage() {
           บันทึกทั้งหมด
         </button>
       </div>
+
+      {/* Order text modal */}
+      {showOrderText && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <h2 className="font-bold text-slate-800 text-lg">📝 ข้อความสั่งซื้อวัตถุดิบ</h2>
+              <button onClick={() => setShowOrderText(false)} className="text-slate-400 hover:text-slate-600 text-xl leading-none">✕</button>
+            </div>
+            <div className="px-6 py-4">
+              <textarea
+                readOnly
+                value={orderTextContent}
+                className="w-full h-96 border border-slate-200 rounded-xl px-4 py-3 text-sm font-mono bg-slate-50 focus:outline-none resize-none"
+              />
+            </div>
+            <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
+              <button onClick={() => setShowOrderText(false)} className="border border-slate-300 px-4 py-2 rounded-lg text-sm hover:bg-slate-50 transition-colors">
+                ปิด
+              </button>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(orderTextContent)
+                  setCopied(true)
+                }}
+                className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${copied ? 'bg-green-600 text-white' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
+              >
+                {copied ? '✓ คัดลอกแล้ว' : 'คัดลอก'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Paste modal */}
       {showPaste && (
