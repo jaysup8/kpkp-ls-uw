@@ -16,7 +16,7 @@ function makeId() {
 }
 
 // Items where user inputs ต้องสั่งเพิ่ม directly (no closing stock concept)
-const ORDER_MODE_IDS = new Set(['r12', 'r13', 'r16', 'r17', 'r18', 'r19', 'r20'])
+const ORDER_MODE_IDS = new Set(['r12', 'r13', 'r15', 'r16', 'r17', 'r18', 'r19', 'r20'])
 
 type RowState = {
   itemId: string
@@ -66,10 +66,14 @@ export default function DailyPage() {
     const todayRecords = getStockRecords(b, date)
     setRows(allItems.map(item => {
       const ex = todayRecords.find(r => r.itemId === item.id)
+      const closing = ex?.closingStock ?? 0
+      // Default orderAmount: saved value if exists, otherwise auto-calc for normal items
+      const savedOrder = ex?.received ?? null
+      const autoOrder = item.parLevel > 0 ? Math.max(0, item.parLevel - closing) : 0
       return {
         itemId: item.id,
-        closingStock: ex?.closingStock ?? 0,
-        orderAmount: ORDER_MODE_IDS.has(item.id) ? (ex?.received ?? 0) : 0,
+        closingStock: closing,
+        orderAmount: savedOrder !== null ? savedOrder : (ORDER_MODE_IDS.has(item.id) ? 0 : autoOrder),
       }
     }))
 
@@ -87,7 +91,11 @@ export default function DailyPage() {
   }, [date, router])
 
   function updateClosing(itemId: string, value: number) {
-    setRows(prev => prev.map(r => r.itemId === itemId ? { ...r, closingStock: value } : r))
+    const item = itemMap[itemId]
+    const autoOrder = item?.parLevel > 0 ? Math.max(0, item.parLevel - value) : 0
+    setRows(prev => prev.map(r =>
+      r.itemId === itemId ? { ...r, closingStock: value, orderAmount: autoOrder } : r
+    ))
     setSaved(false)
   }
 
@@ -100,18 +108,14 @@ export default function DailyPage() {
     if (!branch) return
     const itemMap = Object.fromEntries(items.map(i => [i.id, i]))
     const records: DailyStockRecord[] = rows.map(r => {
-      const item = itemMap[r.itemId]
       const isOrderMode = ORDER_MODE_IDS.has(r.itemId)
-      const orderAmount = isOrderMode
-        ? r.orderAmount
-        : (item?.parLevel > 0 ? Math.max(0, item.parLevel - r.closingStock) : 0)
       return {
         id: makeId(),
         date,
         branch,
         itemId: r.itemId,
         openingStock: 0,
-        received: orderAmount,
+        received: r.orderAmount,  // always use the stored orderAmount (auto or manual)
         used: 0,
         closingStock: isOrderMode ? 0 : r.closingStock,
       }
@@ -226,9 +230,7 @@ export default function DailyPage() {
                     const row = rows.find(r => r.itemId === item.id)
                     if (!row) return null
                     const isOrderMode = ORDER_MODE_IDS.has(item.id)
-                    const orderAmount = isOrderMode
-                      ? row.orderAmount
-                      : (item.parLevel > 0 ? Math.max(0, item.parLevel - row.closingStock) : 0)
+                    const orderAmount = row.orderAmount
                     const monthlyUsed = (monthlyOrderMap[item.id] ?? 0) + orderAmount
                     const isLow = !isOrderMode && item.parLevel > 0 && row.closingStock < item.parLevel * 0.3
                     return (
@@ -258,21 +260,19 @@ export default function DailyPage() {
                           )}
                         </td>
 
-                        {/* ต้องสั่งเพิ่ม column */}
+                        {/* ต้องสั่งเพิ่ม column — editable for all items */}
                         <td className="px-2 py-1.5">
-                          {isOrderMode ? (
-                            <input
-                              type="number"
-                              value={row.orderAmount || ''}
-                              placeholder="0"
-                              onChange={e => updateOrder(item.id, parseFloat(e.target.value) || 0)}
-                              className="w-full text-center border border-emerald-300 bg-emerald-50 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 font-medium"
-                            />
-                          ) : (
-                            <span className={`block text-center font-semibold ${orderAmount > 0 ? 'text-amber-600' : item.parLevel > 0 ? 'text-green-600' : 'text-slate-300'}`}>
-                              {item.parLevel > 0 ? orderAmount : '—'}
-                            </span>
-                          )}
+                          <input
+                            type="number"
+                            value={row.orderAmount || ''}
+                            placeholder="0"
+                            onChange={e => updateOrder(item.id, parseFloat(e.target.value) || 0)}
+                            className={`w-full text-center border rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 font-medium ${
+                              isOrderMode
+                                ? 'border-emerald-300 bg-emerald-50 focus:ring-emerald-400'
+                                : 'border-slate-200 bg-white focus:ring-blue-400'
+                            }`}
+                          />
                         </td>
 
                         {/* ใช้ไป column */}
