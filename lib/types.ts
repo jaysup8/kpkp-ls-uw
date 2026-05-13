@@ -1,4 +1,4 @@
-export type Category = 'fresh' | 'franchisor' | 'dry'
+export type Category = 'raw' | 'freshket' | 'franchisor' | 'drinks' | 'etc'
 
 export interface StockItem {
   id: string

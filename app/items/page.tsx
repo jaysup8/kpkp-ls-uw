@@ -4,9 +4,11 @@ import { getItems, saveItems } from '@/lib/storage'
 import type { StockItem, Category } from '@/lib/types'
 
 const CATEGORIES: { value: Category; label: string }[] = [
-  { value: 'fresh', label: 'วัตถุดิบสด (Fresh)' },
-  { value: 'franchisor', label: 'แฟรนไชส์ (Franchisor)' },
-  { value: 'dry', label: 'ของแห้ง / อื่นๆ (Dry Goods)' },
+  { value: 'raw',        label: 'Raw Food' },
+  { value: 'freshket',   label: 'Freshket / Makro' },
+  { value: 'franchisor', label: 'Franchisor' },
+  { value: 'drinks',     label: 'Drinks' },
+  { value: 'etc',        label: 'ETC' },
 ]
 
 function makeId() {
@@ -17,7 +19,7 @@ const BLANK: Omit<StockItem, 'id'> = {
   nameTh: '',
   nameEn: '',
   unit: 'kg',
-  category: 'fresh',
+  category: 'raw',
   supplier: 'Makro / Freshket',
   parLevel: 0,
   costPerUnit: 0,

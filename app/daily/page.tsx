@@ -20,9 +20,11 @@ type RowState = {
 }
 
 const CATEGORIES = [
-  { key: 'fresh', label: 'วัตถุดิบสด', supplier: 'Makro / Freshket' },
-  { key: 'franchisor', label: 'แฟรนไชส์', supplier: 'Franchisor' },
-  { key: 'dry', label: 'ของแห้ง / อื่นๆ', supplier: 'Other' },
+  { key: 'raw',        label: 'Raw Food',         supplier: '' },
+  { key: 'freshket',   label: 'Freshket / Makro', supplier: 'Freshket / Makro' },
+  { key: 'franchisor', label: 'Franchisor',        supplier: 'Franchisor' },
+  { key: 'drinks',     label: 'Drinks',            supplier: '' },
+  { key: 'etc',        label: 'ETC',               supplier: '' },
 ] as const
 
 export default function DailyPage() {
