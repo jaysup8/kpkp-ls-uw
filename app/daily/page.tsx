@@ -17,10 +17,7 @@ function makeId() {
 
 type RowState = {
   itemId: string
-  openingStock: number
-  received: number
-  used: number
-  notes: string
+  closingStock: number  // คงเหลือ — the only user-input field
 }
 
 const CATEGORIES = [
@@ -45,8 +42,10 @@ export default function DailyPage() {
   const [items, setItems] = useState<StockItem[]>([])
   const [rows, setRows] = useState<RowState[]>([])
   const [saved, setSaved] = useState(false)
+  // monthlyOrderMap: itemId → total ต้องสั่งเพิ่ม for previous days in this month
+  const [monthlyOrderMap, setMonthlyOrderMap] = useState<Record<string, number>>({})
 
-  // Paste modal state
+  // Paste modal
   const [showPaste, setShowPaste] = useState(false)
   const [pasteStep, setPasteStep] = useState<PasteStep>('input')
   const [pasteText, setPasteText] = useState('')
@@ -58,40 +57,49 @@ export default function DailyPage() {
     setBranch(b)
     const allItems = getItems().filter(i => i.active)
     setItems(allItems)
-    const existing = getStockRecords(b, date)
-    setRows(
-      allItems.map(item => {
-        const ex = existing.find(r => r.itemId === item.id)
-        return {
-          itemId: item.id,
-          openingStock: ex?.openingStock ?? 0,
-          received: ex?.received ?? 0,
-          used: ex?.used ?? 0,
-          notes: ex?.notes ?? '',
-        }
-      })
-    )
+
+    // Load today's saved values
+    const todayRecords = getStockRecords(b, date)
+    setRows(allItems.map(item => {
+      const ex = todayRecords.find(r => r.itemId === item.id)
+      return { itemId: item.id, closingStock: ex?.closingStock ?? 0 }
+    }))
+
+    // Build monthly sum of ต้องสั่งเพิ่ม (received) excluding today
+    const monthPrefix = date.slice(0, 7)
+    const allRecords = getStockRecords(b)
+    const map: Record<string, number> = {}
+    for (const r of allRecords) {
+      if (r.date.startsWith(monthPrefix) && r.date !== date) {
+        map[r.itemId] = (map[r.itemId] ?? 0) + r.received
+      }
+    }
+    setMonthlyOrderMap(map)
     setSaved(false)
   }, [date, router])
 
-  function updateRow(itemId: string, field: keyof RowState, value: number | string) {
-    setRows(prev => prev.map(r => (r.itemId === itemId ? { ...r, [field]: value } : r)))
+  function updateRow(itemId: string, value: number) {
+    setRows(prev => prev.map(r => r.itemId === itemId ? { ...r, closingStock: value } : r))
     setSaved(false)
   }
 
   function handleSave() {
     if (!branch) return
-    const records: DailyStockRecord[] = rows.map(r => ({
-      id: makeId(),
-      date,
-      branch,
-      itemId: r.itemId,
-      openingStock: r.openingStock,
-      received: r.received,
-      used: r.used,
-      closingStock: r.openingStock + r.received - r.used,
-      notes: r.notes,
-    }))
+    const itemMap = Object.fromEntries(items.map(i => [i.id, i]))
+    const records: DailyStockRecord[] = rows.map(r => {
+      const item = itemMap[r.itemId]
+      const orderAmount = item?.parLevel > 0 ? Math.max(0, item.parLevel - r.closingStock) : 0
+      return {
+        id: makeId(),
+        date,
+        branch,
+        itemId: r.itemId,
+        openingStock: 0,
+        received: orderAmount,  // stores ต้องสั่งเพิ่ม for monthly sum
+        used: 0,
+        closingStock: r.closingStock,
+      }
+    })
     saveAllStockRecords(branch, records)
     setSaved(true)
   }
@@ -104,8 +112,7 @@ export default function DailyPage() {
   }
 
   function handleParse() {
-    const results = parseStockText(pasteText)
-    setParseResults(results)
+    setParseResults(parseStockText(pasteText))
     setPasteStep('recheck')
   }
 
@@ -115,11 +122,7 @@ export default function DailyPage() {
       for (const r of parseResults) {
         if (r.itemId === null || r.closing === null) continue
         const idx = next.findIndex(row => row.itemId === r.itemId)
-        if (idx === -1) continue
-        const row = next[idx]
-        const targetClosing = r.closing
-        const used = Math.max(0, row.openingStock + row.received - targetClosing)
-        next[idx] = { ...row, used }
+        if (idx !== -1) next[idx] = { ...next[idx], closingStock: r.closing! }
       }
       return next
     })
@@ -129,7 +132,8 @@ export default function DailyPage() {
 
   if (!branch) return null
 
-  // Recheck stats
+  const itemMap = Object.fromEntries(items.map(i => [i.id, i]))
+
   const matched = parseResults.filter(r => r.itemId !== null && r.closing !== null)
   const noUpdate = parseResults.filter(r => r.itemId !== null && r.closing === null)
   const unmatched = parseResults.filter(r => r.itemId === null)
@@ -175,12 +179,8 @@ export default function DailyPage() {
         return (
           <div key={cat.key} className="mb-8">
             <h2 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
-              <span className="text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
-                {cat.label}
-              </span>
-              {cat.supplier && (
-                <span className="text-xs text-slate-400">{cat.supplier}</span>
-              )}
+              <span className="text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">{cat.label}</span>
+              {cat.supplier && <span className="text-xs text-slate-400">{cat.supplier}</span>}
             </h2>
             <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-sm">
               <table className="w-full text-sm">
@@ -189,17 +189,14 @@ export default function DailyPage() {
                     <th className="text-left px-4 py-3 font-medium text-slate-600 min-w-[160px]">รายการ</th>
                     <th className="text-left px-4 py-3 font-medium text-slate-600 w-16">หน่วย</th>
                     <th className="text-center px-4 py-3 font-medium text-slate-600 w-16">Par</th>
-                    <th className="text-center px-4 py-3 font-medium text-slate-600 w-28">
-                      ยกมา<br /><span className="font-normal opacity-60">Opening</span>
+                    <th className="text-center px-4 py-3 font-medium text-slate-600 w-32">
+                      คงเหลือ<br /><span className="font-normal opacity-60">Closing Stock</span>
                     </th>
-                    <th className="text-center px-4 py-3 font-medium text-slate-600 w-28">
-                      รับเข้า<br /><span className="font-normal opacity-60">Received</span>
+                    <th className="text-center px-4 py-3 font-medium text-slate-600 w-32">
+                      ต้องสั่งเพิ่ม<br /><span className="font-normal opacity-60">To Order</span>
                     </th>
-                    <th className="text-center px-4 py-3 font-medium text-slate-600 w-28">
-                      ใช้ไป<br /><span className="font-normal opacity-60">Used</span>
-                    </th>
-                    <th className="text-center px-4 py-3 font-medium text-slate-600 w-28">
-                      คงเหลือ<br /><span className="font-normal opacity-60">Closing</span>
+                    <th className="text-center px-4 py-3 font-medium text-slate-600 w-32">
+                      ใช้ไป (เดือนนี้)<br /><span className="font-normal opacity-60">Monthly Used</span>
                     </th>
                   </tr>
                 </thead>
@@ -207,8 +204,9 @@ export default function DailyPage() {
                   {catItems.map((item, idx) => {
                     const row = rows.find(r => r.itemId === item.id)
                     if (!row) return null
-                    const closing = row.openingStock + row.received - row.used
-                    const isLow = closing < item.parLevel * 0.3 && item.parLevel > 0
+                    const orderAmount = item.parLevel > 0 ? Math.max(0, item.parLevel - row.closingStock) : 0
+                    const monthlyUsed = (monthlyOrderMap[item.id] ?? 0) + orderAmount
+                    const isLow = item.parLevel > 0 && row.closingStock < item.parLevel * 0.3
                     return (
                       <tr
                         key={item.id}
@@ -219,22 +217,33 @@ export default function DailyPage() {
                           <div className="text-xs text-slate-400">{item.nameEn}</div>
                         </td>
                         <td className="px-4 py-2 text-slate-500 text-xs">{item.unit}</td>
-                        <td className="px-4 py-2 text-center text-slate-500">{item.parLevel || '-'}</td>
-                        {(['openingStock', 'received', 'used'] as const).map(field => (
-                          <td key={field} className="px-2 py-1.5">
-                            <input
-                              type="number"
-                              value={row[field] || ''}
-                              placeholder="0"
-                              onChange={e => updateRow(item.id, field, parseFloat(e.target.value) || 0)}
-                              className="w-full text-center border border-slate-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                            />
-                          </td>
-                        ))}
+                        <td className="px-4 py-2 text-center text-slate-500">{item.parLevel || '—'}</td>
+                        <td className="px-2 py-1.5">
+                          <input
+                            type="number"
+                            value={row.closingStock || ''}
+                            placeholder="0"
+                            onChange={e => updateRow(item.id, parseFloat(e.target.value) || 0)}
+                            className={`w-full text-center border rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${isLow ? 'border-red-300 bg-red-50' : 'border-slate-200'}`}
+                          />
+                        </td>
                         <td className="px-4 py-2 text-center">
-                          <span className={`font-semibold ${isLow ? 'text-red-600' : 'text-slate-700'}`}>
-                            {closing % 1 === 0 ? closing : closing.toFixed(2)}
-                          </span>
+                          {item.parLevel > 0 ? (
+                            <span className={`font-semibold ${orderAmount > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                              {orderAmount}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-center">
+                          {item.parLevel > 0 ? (
+                            <span className="font-semibold text-slate-700">
+                              {monthlyUsed}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
                           {isLow && <span className="ml-1 text-xs">⚠️</span>}
                         </td>
                       </tr>
@@ -260,7 +269,6 @@ export default function DailyPage() {
       {showPaste && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-            {/* Modal header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
               <div>
                 <h2 className="font-bold text-slate-800 text-lg">
@@ -272,15 +280,9 @@ export default function DailyPage() {
                     : `พบ ${matched.length} รายการ · ไม่อัปเดต ${noUpdate.length} · ไม่รู้จัก ${unmatched.length}`}
                 </p>
               </div>
-              <button
-                onClick={() => setShowPaste(false)}
-                className="text-slate-400 hover:text-slate-600 text-xl leading-none"
-              >
-                ✕
-              </button>
+              <button onClick={() => setShowPaste(false)} className="text-slate-400 hover:text-slate-600 text-xl leading-none">✕</button>
             </div>
 
-            {/* Modal body */}
             <div className="flex-1 overflow-y-auto px-6 py-4">
               {pasteStep === 'input' ? (
                 <textarea
@@ -296,7 +298,7 @@ export default function DailyPage() {
                     <tr className="text-xs text-slate-500 border-b border-slate-200">
                       <th className="text-left py-2 font-medium">ข้อความต้นฉบับ</th>
                       <th className="text-left py-2 font-medium">รายการที่จับคู่</th>
-                      <th className="text-center py-2 font-medium w-24">สต็อกคงเหลือ</th>
+                      <th className="text-center py-2 font-medium w-24">คงเหลือ</th>
                       <th className="text-center py-2 font-medium w-20">สถานะ</th>
                     </tr>
                   </thead>
@@ -305,9 +307,7 @@ export default function DailyPage() {
                       <tr key={i} className={`border-b border-slate-100 ${r.itemId === null ? 'bg-amber-50' : ''}`}>
                         <td className="py-2 pr-3">
                           <span className="font-mono text-xs text-slate-600">{r.rawName}</span>
-                          {r.rawValue && (
-                            <span className="font-mono text-xs text-slate-400"> : {r.rawValue}</span>
-                          )}
+                          {r.rawValue && <span className="font-mono text-xs text-slate-400"> : {r.rawValue}</span>}
                         </td>
                         <td className="py-2 pr-3">
                           {r.matchedName
@@ -335,14 +335,10 @@ export default function DailyPage() {
               )}
             </div>
 
-            {/* Modal footer */}
             <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
               {pasteStep === 'input' ? (
                 <>
-                  <button
-                    onClick={() => setShowPaste(false)}
-                    className="border border-slate-300 px-4 py-2 rounded-lg text-sm hover:bg-slate-50 transition-colors"
-                  >
+                  <button onClick={() => setShowPaste(false)} className="border border-slate-300 px-4 py-2 rounded-lg text-sm hover:bg-slate-50 transition-colors">
                     ยกเลิก
                   </button>
                   <button
@@ -355,10 +351,7 @@ export default function DailyPage() {
                 </>
               ) : (
                 <>
-                  <button
-                    onClick={() => setPasteStep('input')}
-                    className="border border-slate-300 px-4 py-2 rounded-lg text-sm hover:bg-slate-50 transition-colors"
-                  >
+                  <button onClick={() => setPasteStep('input')} className="border border-slate-300 px-4 py-2 rounded-lg text-sm hover:bg-slate-50 transition-colors">
                     ← แก้ไขข้อความ
                   </button>
                   <button
