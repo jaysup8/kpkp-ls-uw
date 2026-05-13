@@ -1,4 +1,10 @@
 export type Category = 'raw' | 'freshket' | 'franchisor' | 'drinks' | 'etc'
+export type Branch = 'lasalle' | 'udomsuk'
+
+export const BRANCH_NAMES: Record<Branch, string> = {
+  lasalle: 'KPKP Lasalle',
+  udomsuk: 'KPKP Udomsuk',
+}
 
 export interface StockItem {
   id: string
@@ -15,6 +21,7 @@ export interface StockItem {
 export interface DailyStockRecord {
   id: string
   date: string
+  branch: Branch
   itemId: string
   openingStock: number
   received: number
@@ -25,10 +32,15 @@ export interface DailyStockRecord {
 
 export interface DailyPL {
   date: string
+  branch: Branch
   targetRevenue: number
-  cashSales: number
-  transferSales: number
-  linemanSales: number
-  otherSales: number
+  cashSales: number        // เงินสด
+  transferTotal: number    // เงินโอน (รวม Grab + Robinhood + Shopee)
+  linemanSales: number     // Lineman
+  grabSales: number        // Grab
+  robinhoodSales: number   // Robinhood
+  shopeeSales: number      // Shopee
+  // auto: เงินโอนแม่มณี = transferTotal - grabSales - robinhoodSales - shopeeSales
+  // auto: total = cashSales + เงินโอนแม่มณี + linemanSales + grabSales + robinhoodSales + shopeeSales
   notes?: string
 }

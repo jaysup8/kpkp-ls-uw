@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { getItems, saveItems } from '@/lib/storage'
+import { useRouter } from 'next/navigation'
+import { getItems, saveItems, getSelectedBranch } from '@/lib/storage'
 import type { StockItem, Category } from '@/lib/types'
 
 const CATEGORIES: { value: Category; label: string }[] = [
@@ -27,6 +28,7 @@ const BLANK: Omit<StockItem, 'id'> = {
 }
 
 export default function ItemsPage() {
+  const router = useRouter()
   const [items, setItems] = useState<StockItem[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<StockItem | null>(null)
@@ -34,8 +36,9 @@ export default function ItemsPage() {
   const [toast, setToast] = useState('')
 
   useEffect(() => {
+    if (!getSelectedBranch()) { router.push('/'); return }
     setItems(getItems())
-  }, [])
+  }, [router])
 
   function persist(updated: StockItem[]) {
     setItems(updated)

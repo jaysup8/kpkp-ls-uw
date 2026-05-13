@@ -1,7 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { getItems, getStockRecords, saveAllStockRecords } from '@/lib/storage'
-import type { StockItem, DailyStockRecord } from '@/lib/types'
+import { useRouter } from 'next/navigation'
+import { getItems, getStockRecords, saveAllStockRecords, getSelectedBranch } from '@/lib/storage'
+import type { StockItem, DailyStockRecord, Branch } from '@/lib/types'
+import { BRANCH_NAMES } from '@/lib/types'
 
 function today() {
   return new Date().toISOString().split('T')[0]
@@ -27,16 +29,26 @@ const CATEGORIES = [
   { key: 'etc',        label: 'ETC',               supplier: '' },
 ] as const
 
+const BRANCH_BADGE: Record<Branch, string> = {
+  lasalle:  'bg-blue-100 text-blue-700',
+  udomsuk:  'bg-emerald-100 text-emerald-700',
+}
+
 export default function DailyPage() {
+  const router = useRouter()
+  const [branch, setBranch] = useState<Branch | null>(null)
   const [date, setDate] = useState(today())
   const [items, setItems] = useState<StockItem[]>([])
   const [rows, setRows] = useState<RowState[]>([])
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
+    const b = getSelectedBranch()
+    if (!b) { router.push('/'); return }
+    setBranch(b)
     const allItems = getItems().filter(i => i.active)
     setItems(allItems)
-    const existing = getStockRecords(date)
+    const existing = getStockRecords(b, date)
     setRows(
       allItems.map(item => {
         const ex = existing.find(r => r.itemId === item.id)
@@ -50,7 +62,7 @@ export default function DailyPage() {
       })
     )
     setSaved(false)
-  }, [date])
+  }, [date, router])
 
   function updateRow(itemId: string, field: keyof RowState, value: number | string) {
     setRows(prev => prev.map(r => (r.itemId === itemId ? { ...r, [field]: value } : r)))
@@ -58,9 +70,11 @@ export default function DailyPage() {
   }
 
   function handleSave() {
+    if (!branch) return
     const records: DailyStockRecord[] = rows.map(r => ({
       id: makeId(),
       date,
+      branch,
       itemId: r.itemId,
       openingStock: r.openingStock,
       received: r.received,
@@ -68,16 +82,23 @@ export default function DailyPage() {
       closingStock: r.openingStock + r.received - r.used,
       notes: r.notes,
     }))
-    saveAllStockRecords(records)
+    saveAllStockRecords(branch, records)
     setSaved(true)
   }
+
+  if (!branch) return null
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">บันทึกสต็อกรายวัน</h1>
-          <p className="text-xs text-slate-500">Daily Stock Entry</p>
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-2xl font-bold text-slate-800">บันทึกสต็อกรายวัน</h1>
+            <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${BRANCH_BADGE[branch]}`}>
+              {BRANCH_NAMES[branch]}
+            </span>
+          </div>
+          <p className="text-xs text-slate-400">Daily Stock Entry</p>
         </div>
         <div className="flex items-center gap-3">
           <input
@@ -103,9 +124,11 @@ export default function DailyPage() {
           <div key={cat.key} className="mb-8">
             <h2 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
               <span className="text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
-                {cat.supplier}
+                {cat.label}
               </span>
-              {cat.label}
+              {cat.supplier && (
+                <span className="text-xs text-slate-400">{cat.supplier}</span>
+              )}
             </h2>
             <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-sm">
               <table className="w-full text-sm">
@@ -115,24 +138,16 @@ export default function DailyPage() {
                     <th className="text-left px-4 py-3 font-medium text-slate-600 w-16">หน่วย</th>
                     <th className="text-center px-4 py-3 font-medium text-slate-600 w-16">Par</th>
                     <th className="text-center px-4 py-3 font-medium text-slate-600 w-28">
-                      ยกมา
-                      <br />
-                      <span className="font-normal opacity-60">Opening</span>
+                      ยกมา<br /><span className="font-normal opacity-60">Opening</span>
                     </th>
                     <th className="text-center px-4 py-3 font-medium text-slate-600 w-28">
-                      รับเข้า
-                      <br />
-                      <span className="font-normal opacity-60">Received</span>
+                      รับเข้า<br /><span className="font-normal opacity-60">Received</span>
                     </th>
                     <th className="text-center px-4 py-3 font-medium text-slate-600 w-28">
-                      ใช้ไป
-                      <br />
-                      <span className="font-normal opacity-60">Used</span>
+                      ใช้ไป<br /><span className="font-normal opacity-60">Used</span>
                     </th>
                     <th className="text-center px-4 py-3 font-medium text-slate-600 w-28">
-                      คงเหลือ
-                      <br />
-                      <span className="font-normal opacity-60">Closing</span>
+                      คงเหลือ<br /><span className="font-normal opacity-60">Closing</span>
                     </th>
                   </tr>
                 </thead>
@@ -145,51 +160,27 @@ export default function DailyPage() {
                     return (
                       <tr
                         key={item.id}
-                        className={`border-b border-slate-100 ${idx % 2 === 0 ? '' : 'bg-slate-50/50'} ${isLow ? 'bg-red-50' : ''}`}
+                        className={`border-b border-slate-100 ${isLow ? 'bg-red-50' : idx % 2 === 0 ? '' : 'bg-slate-50/50'}`}
                       >
                         <td className="px-4 py-2">
                           <div className="font-medium text-slate-800">{item.nameTh}</div>
                           <div className="text-xs text-slate-400">{item.nameEn}</div>
                         </td>
                         <td className="px-4 py-2 text-slate-500 text-xs">{item.unit}</td>
-                        <td className="px-4 py-2 text-center text-slate-500">{item.parLevel}</td>
-                        <td className="px-2 py-1.5">
-                          <input
-                            type="number"
-                            value={row.openingStock || ''}
-                            placeholder="0"
-                            onChange={e =>
-                              updateRow(item.id, 'openingStock', parseFloat(e.target.value) || 0)
-                            }
-                            className="w-full text-center border border-slate-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                          />
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <input
-                            type="number"
-                            value={row.received || ''}
-                            placeholder="0"
-                            onChange={e =>
-                              updateRow(item.id, 'received', parseFloat(e.target.value) || 0)
-                            }
-                            className="w-full text-center border border-slate-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                          />
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <input
-                            type="number"
-                            value={row.used || ''}
-                            placeholder="0"
-                            onChange={e =>
-                              updateRow(item.id, 'used', parseFloat(e.target.value) || 0)
-                            }
-                            className="w-full text-center border border-slate-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                          />
-                        </td>
+                        <td className="px-4 py-2 text-center text-slate-500">{item.parLevel || '-'}</td>
+                        {(['openingStock', 'received', 'used'] as const).map(field => (
+                          <td key={field} className="px-2 py-1.5">
+                            <input
+                              type="number"
+                              value={row[field] || ''}
+                              placeholder="0"
+                              onChange={e => updateRow(item.id, field, parseFloat(e.target.value) || 0)}
+                              className="w-full text-center border border-slate-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            />
+                          </td>
+                        ))}
                         <td className="px-4 py-2 text-center">
-                          <span
-                            className={`font-semibold ${isLow ? 'text-red-600' : 'text-slate-700'}`}
-                          >
+                          <span className={`font-semibold ${isLow ? 'text-red-600' : 'text-slate-700'}`}>
                             {closing % 1 === 0 ? closing : closing.toFixed(2)}
                           </span>
                           {isLow && <span className="ml-1 text-xs">⚠️</span>}

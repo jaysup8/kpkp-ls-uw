@@ -1,10 +1,11 @@
-import type { StockItem, DailyStockRecord, DailyPL } from './types'
+import type { StockItem, DailyStockRecord, DailyPL, Branch } from './types'
 import { INITIAL_ITEMS } from './initialData'
 
-const KEYS = {
+const KEY = {
   items: 'kpkp_items',
-  stockRecords: 'kpkp_stock_records',
-  dailyPL: 'kpkp_daily_pl',
+  branch: 'kpkp_branch',
+  stockRecords: (b: Branch) => `kpkp_${b}_stock`,
+  dailyPL: (b: Branch) => `kpkp_${b}_pl`,
 }
 
 function get<T>(key: string): T | null {
@@ -18,43 +19,64 @@ function set<T>(key: string, value: T): void {
   localStorage.setItem(key, JSON.stringify(value))
 }
 
+// Branch
+export function getSelectedBranch(): Branch | null {
+  return get<Branch>(KEY.branch)
+}
+
+export function setSelectedBranch(branch: Branch): void {
+  set(KEY.branch, branch)
+}
+
+// Items (shared across branches)
 export function getItems(): StockItem[] {
-  return get<StockItem[]>(KEYS.items) ?? INITIAL_ITEMS
+  return get<StockItem[]>(KEY.items) ?? INITIAL_ITEMS
 }
 
 export function saveItems(items: StockItem[]): void {
-  set(KEYS.items, items)
+  set(KEY.items, items)
 }
 
-export function getStockRecords(date?: string): DailyStockRecord[] {
-  const all = get<DailyStockRecord[]>(KEYS.stockRecords) ?? []
+// Stock Records (per branch)
+export function getStockRecords(branch: Branch, date?: string): DailyStockRecord[] {
+  const all = get<DailyStockRecord[]>(KEY.stockRecords(branch)) ?? []
   return date ? all.filter(r => r.date === date) : all
 }
 
-export function saveAllStockRecords(records: DailyStockRecord[]): void {
-  const all = get<DailyStockRecord[]>(KEYS.stockRecords) ?? []
-  if (records.length > 0) {
-    const dates = [...new Set(records.map(r => r.date))]
-    const kept = all.filter(r => !dates.includes(r.date))
-    set(KEYS.stockRecords, [...kept, ...records])
-  }
+export function saveAllStockRecords(branch: Branch, records: DailyStockRecord[]): void {
+  if (records.length === 0) return
+  const all = get<DailyStockRecord[]>(KEY.stockRecords(branch)) ?? []
+  const dates = [...new Set(records.map(r => r.date))]
+  const kept = all.filter(r => !dates.includes(r.date))
+  set(KEY.stockRecords(branch), [...kept, ...records])
 }
 
-export function getDailyPLs(): DailyPL[] {
-  return get<DailyPL[]>(KEYS.dailyPL) ?? []
+// Daily P&L (per branch)
+export function getDailyPLs(branch: Branch): DailyPL[] {
+  return get<DailyPL[]>(KEY.dailyPL(branch)) ?? []
 }
 
-export function getDailyPL(date: string): DailyPL | null {
-  return getDailyPLs().find(p => p.date === date) ?? null
+export function getDailyPL(branch: Branch, date: string): DailyPL | null {
+  return getDailyPLs(branch).find(p => p.date === date) ?? null
 }
 
-export function saveDailyPL(pl: DailyPL): void {
-  const all = getDailyPLs()
+export function saveDailyPL(branch: Branch, pl: DailyPL): void {
+  const all = getDailyPLs(branch)
   const idx = all.findIndex(p => p.date === pl.date)
   if (idx >= 0) {
     all[idx] = pl
   } else {
     all.push(pl)
   }
-  set(KEYS.dailyPL, all)
+  set(KEY.dailyPL(branch), all)
+}
+
+// Helpers
+export function calcMaeManee(pl: Pick<DailyPL, 'transferTotal' | 'grabSales' | 'robinhoodSales' | 'shopeeSales'>): number {
+  return pl.transferTotal - pl.grabSales - pl.robinhoodSales - pl.shopeeSales
+}
+
+export function calcTotalRevenue(pl: Omit<DailyPL, 'date' | 'branch' | 'targetRevenue' | 'notes'>): number {
+  const maeManee = calcMaeManee(pl)
+  return pl.cashSales + maeManee + pl.linemanSales + pl.grabSales + pl.robinhoodSales + pl.shopeeSales
 }
