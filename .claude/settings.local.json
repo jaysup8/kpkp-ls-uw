@@ -8,7 +8,9 @@
       "PowerShell(vercel --version)",
       "PowerShell(node --version)",
       "PowerShell(npm --version)",
-      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); node --version; npm --version)"
+      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); node --version; npm --version)",
+      "Read(//c/Users/JAY168/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/24ff743b-9ea6-42c4-8145-ef0a1607df34/9747485f-01f9-4d3b-aecc-f8aec4e97f9c/skills/xlsx/**)",
+      "Bash(python scripts/extract-text \"C:/Users/JAY168/Downloads/Lasalle KPKP Stocks_ Daily P&L.xlsx\")"
     ]
   }
 }
