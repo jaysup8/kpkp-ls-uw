@@ -19,6 +19,9 @@ export const INITIAL_ITEMS: StockItem[] = [
   { id: 'r15', nameTh: 'มะเขือเทศ',    nameEn: 'Tomato',               unit: 'kg',   category: 'raw',       supplier: '-', parLevel: 0, costPerUnit: 0, active: true },
   { id: 'r16', nameTh: 'มะนาว',        nameEn: 'Lime',                 unit: 'kg',   category: 'raw',       supplier: '-', parLevel: 0, costPerUnit: 0, active: true },
   { id: 'r17', nameTh: 'หอมใหญ่',      nameEn: 'Onion',                unit: 'kg',   category: 'raw',       supplier: '-', parLevel: 0, costPerUnit: 0, active: true },
+  { id: 'r18', nameTh: 'มะเขือ',       nameEn: 'Eggplant',             unit: 'kg',   category: 'raw',       supplier: '-', parLevel: 0, costPerUnit: 0, active: true },
+  { id: 'r19', nameTh: 'พริกแดงจินดา', nameEn: 'Red Chili',            unit: 'kg',   category: 'raw',       supplier: '-', parLevel: 0, costPerUnit: 0, active: true },
+  { id: 'r20', nameTh: 'ผักกาดหอม',    nameEn: 'Lettuce',              unit: 'kg',   category: 'raw',       supplier: '-', parLevel: 0, costPerUnit: 0, active: true },
 
   // === Freshket / Makro ===
   { id: 'fk1',  nameTh: 'เบคอน',              nameEn: 'Bacon',               unit: 'pack',   category: 'freshket', supplier: 'Freshket / Makro', parLevel: 0, costPerUnit: 0, active: true },
