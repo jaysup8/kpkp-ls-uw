@@ -15,6 +15,7 @@ const NAV_LINKS = [
   { href: '/daily',     label: 'บันทึกสต็อก' },
   { href: '/pl',        label: 'รายได้ / P&L' },
   { href: '/items',     label: 'จัดการรายการ' },
+  { href: '/settings',  label: '⚙️' },
 ]
 
 export default function Navbar() {
