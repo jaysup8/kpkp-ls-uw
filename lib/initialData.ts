@@ -43,7 +43,7 @@ export const INITIAL_ITEMS: StockItem[] = [
 
   // === Franchisor ===
   { id: 'fr1', nameTh: 'เนื้อบด',          nameEn: 'Ground Beef',        unit: 'kg',   category: 'franchisor', supplier: 'Franchisor', parLevel: 0, costPerUnit: 0, active: true },
-  { id: 'fr2', nameTh: 'เนื้อแองกัส',       nameEn: 'Angus Beef',         unit: 'kg',   category: 'franchisor', supplier: 'Franchisor', parLevel: 0, costPerUnit: 0, active: true },
+  { id: 'fr2', nameTh: 'เนื้อแองกัสบด',      nameEn: 'Angus Ground Beef',  unit: 'kg',   category: 'franchisor', supplier: 'Franchisor', parLevel: 0, costPerUnit: 0, active: true },
   { id: 'fr3', nameTh: 'หมูยอ',            nameEn: 'Pork Sausage Roll',  unit: 'pack', category: 'franchisor', supplier: 'Franchisor', parLevel: 0, costPerUnit: 0, active: true },
   { id: 'fr4', nameTh: 'กุนเชียง',         nameEn: 'Chinese Sausage',    unit: 'pack', category: 'franchisor', supplier: 'Franchisor', parLevel: 0, costPerUnit: 0, active: true },
   { id: 'fr5', nameTh: 'หน่อไม้',          nameEn: 'Bamboo Shoots',      unit: 'kg',   category: 'franchisor', supplier: 'Franchisor', parLevel: 0, costPerUnit: 0, active: true },
