@@ -50,7 +50,8 @@ export default function DashboardPage() {
 
   const lowStock = records.filter(r => {
     const item = items.find(i => i.id === r.itemId)
-    return item && item.parLevel > 0 && r.closingStock < item.parLevel * 0.3
+    const par = item?.parLevels?.[branch] ?? 0
+    return item && par > 0 && r.closingStock < par * 0.3
   })
 
   return (
@@ -128,7 +129,7 @@ export default function DashboardPage() {
               return (
                 <li key={r.id} className="text-sm text-red-600">
                   {item?.nameTh} — เหลือ <strong>{r.closingStock}</strong> {item?.unit}{' '}
-                  <span className="text-red-400">(par: {item?.parLevel})</span>
+                  <span className="text-red-400">(par: {item?.parLevels?.[branch] ?? 0})</span>
                 </li>
               )
             })}

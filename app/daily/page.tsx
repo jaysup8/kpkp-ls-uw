@@ -75,7 +75,8 @@ export default function DailyPage() {
       const closing = ex?.closingStock ?? 0
       // Default orderAmount: saved value if exists, otherwise auto-calc for normal items
       const savedOrder = ex?.received ?? null
-      const autoOrder = item.parLevel > 0 ? Math.max(0, item.parLevel - closing) : 0
+      const par = b ? (item.parLevels?.[b] ?? 0) : 0
+      const autoOrder = par > 0 ? Math.max(0, par - closing) : 0
       return {
         itemId: item.id,
         closingStock: closing,
@@ -98,7 +99,8 @@ export default function DailyPage() {
 
   function updateClosing(itemId: string, value: number) {
     const item = itemMap[itemId]
-    const autoOrder = item?.parLevel > 0 ? Math.max(0, item.parLevel - value) : 0
+    const par = branch ? (item?.parLevels?.[branch] ?? 0) : 0
+    const autoOrder = par > 0 ? Math.max(0, par - value) : 0
     setRows(prev => prev.map(r =>
       r.itemId === itemId ? { ...r, closingStock: value, orderAmount: autoOrder } : r
     ))
@@ -254,7 +256,8 @@ export default function DailyPage() {
                     const isOrderMode = ORDER_MODE_IDS.has(item.id)
                     const orderAmount = row.orderAmount
                     const monthlyUsed = (monthlyOrderMap[item.id] ?? 0) + orderAmount
-                    const isLow = !isOrderMode && item.parLevel > 0 && row.closingStock < item.parLevel * 0.3
+                    const par = item.parLevels?.[branch] ?? 0
+                    const isLow = !isOrderMode && par > 0 && row.closingStock < par * 0.3
                     return (
                       <tr
                         key={item.id}
@@ -265,7 +268,7 @@ export default function DailyPage() {
                           <div className="text-xs text-slate-400">{item.nameEn}</div>
                         </td>
                         <td className="px-4 py-2 text-slate-500 text-xs">{item.unit}</td>
-                        <td className="px-4 py-2 text-center text-slate-500">{item.parLevel || '—'}</td>
+                        <td className="px-4 py-2 text-center text-slate-500">{(item.parLevels?.[branch] ?? 0) || '—'}</td>
 
                         {/* คงเหลือ column */}
                         <td className="px-2 py-1.5">

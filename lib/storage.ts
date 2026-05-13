@@ -28,9 +28,21 @@ export function setSelectedBranch(branch: Branch): void {
   set(KEY.branch, branch)
 }
 
+function migrateItems(raw: any[]): StockItem[] {
+  return raw.map(i => {
+    if (!i.parLevels && typeof i.parLevel === 'number') {
+      const { parLevel, ...rest } = i
+      return { ...rest, parLevels: { lasalle: parLevel, udomsuk: parLevel } } as StockItem
+    }
+    return i as StockItem
+  })
+}
+
 // Items (shared across branches)
 export function getItems(): StockItem[] {
-  return get<StockItem[]>(KEY.items) ?? INITIAL_ITEMS
+  const raw = get<any[]>(KEY.items)
+  if (!raw) return INITIAL_ITEMS
+  return migrateItems(raw)
 }
 
 export function saveItems(items: StockItem[]): void {

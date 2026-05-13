@@ -13,7 +13,7 @@ export interface StockItem {
   unit: string
   category: Category
   supplier: string
-  parLevel: number
+  parLevels: Record<Branch, number>  // per-branch par levels
   costPerUnit: number
   active: boolean
   branches?: Branch[]  // undefined = all branches; set to restrict to specific branches
