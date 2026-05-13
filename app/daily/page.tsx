@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getItems, getStockRecords, saveAllStockRecords, getSelectedBranch } from '@/lib/storage'
+import { parseStockText } from '@/lib/parseStock'
+import type { ParseResult } from '@/lib/parseStock'
 import type { StockItem, DailyStockRecord, Branch } from '@/lib/types'
 import { BRANCH_NAMES } from '@/lib/types'
 
@@ -34,6 +36,8 @@ const BRANCH_BADGE: Record<Branch, string> = {
   udomsuk:  'bg-emerald-100 text-emerald-700',
 }
 
+type PasteStep = 'input' | 'recheck'
+
 export default function DailyPage() {
   const router = useRouter()
   const [branch, setBranch] = useState<Branch | null>(null)
@@ -41,6 +45,12 @@ export default function DailyPage() {
   const [items, setItems] = useState<StockItem[]>([])
   const [rows, setRows] = useState<RowState[]>([])
   const [saved, setSaved] = useState(false)
+
+  // Paste modal state
+  const [showPaste, setShowPaste] = useState(false)
+  const [pasteStep, setPasteStep] = useState<PasteStep>('input')
+  const [pasteText, setPasteText] = useState('')
+  const [parseResults, setParseResults] = useState<ParseResult[]>([])
 
   useEffect(() => {
     const b = getSelectedBranch()
@@ -86,7 +96,43 @@ export default function DailyPage() {
     setSaved(true)
   }
 
+  function openPaste() {
+    setPasteText('')
+    setPasteStep('input')
+    setParseResults([])
+    setShowPaste(true)
+  }
+
+  function handleParse() {
+    const results = parseStockText(pasteText)
+    setParseResults(results)
+    setPasteStep('recheck')
+  }
+
+  function handleConfirm() {
+    setRows(prev => {
+      const next = [...prev]
+      for (const r of parseResults) {
+        if (r.itemId === null || r.closing === null) continue
+        const idx = next.findIndex(row => row.itemId === r.itemId)
+        if (idx === -1) continue
+        const row = next[idx]
+        const targetClosing = r.closing
+        const used = Math.max(0, row.openingStock + row.received - targetClosing)
+        next[idx] = { ...row, used }
+      }
+      return next
+    })
+    setSaved(false)
+    setShowPaste(false)
+  }
+
   if (!branch) return null
+
+  // Recheck stats
+  const matched = parseResults.filter(r => r.itemId !== null && r.closing !== null)
+  const noUpdate = parseResults.filter(r => r.itemId !== null && r.closing === null)
+  const unmatched = parseResults.filter(r => r.itemId === null)
 
   return (
     <div>
@@ -101,6 +147,12 @@ export default function DailyPage() {
           <p className="text-xs text-slate-400">Daily Stock Entry</p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={openPaste}
+            className="border border-slate-300 bg-white text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:border-blue-400 hover:text-blue-600 transition-colors"
+          >
+            📋 วางข้อความ
+          </button>
           <input
             type="date"
             value={date}
@@ -203,6 +255,125 @@ export default function DailyPage() {
           บันทึกทั้งหมด
         </button>
       </div>
+
+      {/* Paste modal */}
+      {showPaste && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <div>
+                <h2 className="font-bold text-slate-800 text-lg">
+                  {pasteStep === 'input' ? '📋 วางข้อความนับสต็อก' : '🔍 ตรวจสอบผลการอ่าน'}
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {pasteStep === 'input'
+                    ? 'วางข้อความในรูปแบบ "ชื่อสินค้า: ค่า" แล้วกด วิเคราะห์'
+                    : `พบ ${matched.length} รายการ · ไม่อัปเดต ${noUpdate.length} · ไม่รู้จัก ${unmatched.length}`}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowPaste(false)}
+                className="text-slate-400 hover:text-slate-600 text-xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal body */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {pasteStep === 'input' ? (
+                <textarea
+                  value={pasteText}
+                  onChange={e => setPasteText(e.target.value)}
+                  placeholder={'มันหมู: 2\nหมูสับ: หมด\nสันคอหมู(หมูชิ้น): 1.5\nกุ้ง:\n...'}
+                  className="w-full h-72 border border-slate-300 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                  autoFocus
+                />
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-xs text-slate-500 border-b border-slate-200">
+                      <th className="text-left py-2 font-medium">ข้อความต้นฉบับ</th>
+                      <th className="text-left py-2 font-medium">รายการที่จับคู่</th>
+                      <th className="text-center py-2 font-medium w-24">สต็อกคงเหลือ</th>
+                      <th className="text-center py-2 font-medium w-20">สถานะ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {parseResults.map((r, i) => (
+                      <tr key={i} className={`border-b border-slate-100 ${r.itemId === null ? 'bg-amber-50' : ''}`}>
+                        <td className="py-2 pr-3">
+                          <span className="font-mono text-xs text-slate-600">{r.rawName}</span>
+                          {r.rawValue && (
+                            <span className="font-mono text-xs text-slate-400"> : {r.rawValue}</span>
+                          )}
+                        </td>
+                        <td className="py-2 pr-3">
+                          {r.matchedName
+                            ? <span className="text-slate-800">{r.matchedName}</span>
+                            : <span className="text-amber-600 text-xs">— ไม่รู้จัก</span>}
+                        </td>
+                        <td className="py-2 text-center">
+                          {r.itemId === null ? (
+                            <span className="text-slate-300">—</span>
+                          ) : r.closing === null ? (
+                            <span className="text-slate-400 text-xs">ไม่อัปเดต</span>
+                          ) : r.closing === 0 ? (
+                            <span className="font-bold text-red-600">หมด (0)</span>
+                          ) : (
+                            <span className="font-semibold text-slate-800">{r.closing}</span>
+                          )}
+                        </td>
+                        <td className="py-2 text-center text-base">
+                          {r.itemId === null ? '⚠️' : r.closing === null ? '—' : '✓'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Modal footer */}
+            <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
+              {pasteStep === 'input' ? (
+                <>
+                  <button
+                    onClick={() => setShowPaste(false)}
+                    className="border border-slate-300 px-4 py-2 rounded-lg text-sm hover:bg-slate-50 transition-colors"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    onClick={handleParse}
+                    disabled={!pasteText.trim()}
+                    className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors"
+                  >
+                    วิเคราะห์
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setPasteStep('input')}
+                    className="border border-slate-300 px-4 py-2 rounded-lg text-sm hover:bg-slate-50 transition-colors"
+                  >
+                    ← แก้ไขข้อความ
+                  </button>
+                  <button
+                    onClick={handleConfirm}
+                    disabled={matched.length === 0}
+                    className="bg-green-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-40 transition-colors"
+                  >
+                    ยืนยันและกรอก ({matched.length} รายการ)
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
