@@ -42,7 +42,13 @@ function migrateItems(raw: any[]): StockItem[] {
 export function getItems(): StockItem[] {
   const raw = get<any[]>(KEY.items)
   if (!raw) return INITIAL_ITEMS
-  return migrateItems(raw)
+  const stored = migrateItems(raw)
+  // Merge: add any items from INITIAL_ITEMS that are missing from stored data.
+  // This ensures newly added items (e.g. r21, r22) appear for existing users
+  // without wiping out any customisations they've made.
+  const storedIds = new Set(stored.map(i => i.id))
+  const missing = INITIAL_ITEMS.filter(i => !storedIds.has(i.id))
+  return missing.length > 0 ? [...stored, ...missing] : stored
 }
 
 export function saveItems(items: StockItem[]): void {
