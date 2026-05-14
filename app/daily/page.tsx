@@ -73,14 +73,14 @@ export default function DailyPage() {
     setRows(allItems.map(item => {
       const ex = todayRecords.find(r => r.itemId === item.id)
       const closing = ex?.closingStock ?? 0
-      // Default orderAmount: saved value if exists, otherwise auto-calc for normal items
-      const savedOrder = ex?.received ?? null
       const par = b ? (item.parLevels?.[b] ?? 0) : 0
       const autoOrder = par > 0 ? Math.max(0, par - closing) : 0
       return {
         itemId: item.id,
         closingStock: closing,
-        orderAmount: savedOrder !== null ? savedOrder : (ORDER_MODE_IDS.has(item.id) ? 0 : autoOrder),
+        // ORDER_MODE items: restore the saved direct-input order amount
+        // Normal items: always recalculate from par - closing
+        orderAmount: ORDER_MODE_IDS.has(item.id) ? (ex?.received ?? 0) : autoOrder,
       }
     }))
 
@@ -101,9 +101,12 @@ export default function DailyPage() {
     const item = itemMap[itemId]
     const par = branch ? (item?.parLevels?.[branch] ?? 0) : 0
     const autoOrder = par > 0 ? Math.max(0, par - value) : 0
-    setRows(prev => prev.map(r =>
-      r.itemId === itemId ? { ...r, closingStock: value, orderAmount: autoOrder } : r
-    ))
+    setRows(prev => prev.map(r => {
+      if (r.itemId !== itemId) return r
+      // ORDER_MODE items have no closing stock — don't touch their orderAmount
+      if (ORDER_MODE_IDS.has(itemId)) return { ...r, closingStock: value }
+      return { ...r, closingStock: value, orderAmount: autoOrder }
+    }))
     setSaved(false)
   }
 
