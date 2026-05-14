@@ -42,10 +42,28 @@ function migrateItems(raw: any[]): StockItem[] {
 export function getItems(): StockItem[] {
   const raw = get<any[]>(KEY.items)
   if (!raw) return INITIAL_ITEMS
-  const stored = migrateItems(raw)
-  // Merge: add any items from INITIAL_ITEMS that are missing from stored data.
-  // This ensures newly added items (e.g. r21, r22) appear for existing users
-  // without wiping out any customisations they've made.
+
+  // Step 1: migrate parLevel → parLevels
+  let stored = migrateItems(raw)
+
+  // Step 2: if a stored item has the same Thai name as an INITIAL_ITEMS entry but
+  // a different id (e.g. manually added before the canonical item was defined),
+  // reassign it to the canonical id so the order-text lookup always matches.
+  const canonicalByName = new Map(INITIAL_ITEMS.map(i => [i.nameTh, i.id]))
+  const canonicalIdSet  = new Set(INITIAL_ITEMS.map(i => i.id))
+  stored = stored.map(s => {
+    const canonicalId = canonicalByName.get(s.nameTh)
+    if (canonicalId && s.id !== canonicalId && !canonicalIdSet.has(s.id)) {
+      return { ...s, id: canonicalId }
+    }
+    return s
+  })
+
+  // Step 3: deduplicate by id — keep the first occurrence (user's settings win)
+  const seen = new Set<string>()
+  stored = stored.filter(s => { if (seen.has(s.id)) return false; seen.add(s.id); return true })
+
+  // Step 4: append any INITIAL_ITEMS that are still missing
   const storedIds = new Set(stored.map(i => i.id))
   const missing = INITIAL_ITEMS.filter(i => !storedIds.has(i.id))
   return missing.length > 0 ? [...stored, ...missing] : stored
