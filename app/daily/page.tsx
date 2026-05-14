@@ -21,8 +21,9 @@ const ORDER_MODE_IDS = new Set(['r12', 'r13', 'r15', 'r16', 'r17', 'r18', 'r19',
 
 type RowState = {
   itemId: string
-  closingStock: number  // for normal items
-  orderAmount: number   // for order-mode items (direct input)
+  closingStock: number   // for normal items
+  orderAmount: number    // ORDER_MODE: direct input; normal: manual override
+  manualOrder: boolean   // normal items only — true when user has manually set To Order
 }
 
 const CATEGORIES = [
@@ -73,14 +74,11 @@ export default function DailyPage() {
     setRows(allItems.map(item => {
       const ex = todayRecords.find(r => r.itemId === item.id)
       const closing = ex?.closingStock ?? 0
-      const par = b ? (item.parLevels?.[b] ?? 0) : 0
-      const autoOrder = par > 0 ? Math.max(0, par - closing) : 0
       return {
         itemId: item.id,
         closingStock: closing,
-        // ORDER_MODE items: restore the saved direct-input order amount
-        // Normal items: always recalculate from par - closing
-        orderAmount: ORDER_MODE_IDS.has(item.id) ? (ex?.received ?? 0) : autoOrder,
+        orderAmount: ORDER_MODE_IDS.has(item.id) ? (ex?.received ?? 0) : 0,
+        manualOrder: false,  // always recompute from par on load
       }
     }))
 
@@ -98,27 +96,34 @@ export default function DailyPage() {
   }, [date, router])
 
   function updateClosing(itemId: string, value: number) {
-    const item = itemMap[itemId]
-    const par = branch ? (item?.parLevels?.[branch] ?? 0) : 0
-    const autoOrder = par > 0 ? Math.max(0, par - value) : 0
     setRows(prev => prev.map(r => {
       if (r.itemId !== itemId) return r
-      // ORDER_MODE items have no closing stock — don't touch their orderAmount
-      if (ORDER_MODE_IDS.has(itemId)) return { ...r, closingStock: value }
-      return { ...r, closingStock: value, orderAmount: autoOrder }
+      // Updating closing stock clears any manual To Order override — formula takes over
+      return { ...r, closingStock: value, manualOrder: false }
     }))
     setSaved(false)
   }
 
   function updateOrder(itemId: string, value: number) {
-    setRows(prev => prev.map(r => r.itemId === itemId ? { ...r, orderAmount: value } : r))
+    setRows(prev => prev.map(r =>
+      r.itemId === itemId ? { ...r, orderAmount: value, manualOrder: true } : r
+    ))
     setSaved(false)
+  }
+
+  // Compute the effective To Order for a row (same logic as render)
+  function getDisplayOrder(r: RowState, item: StockItem): number {
+    if (ORDER_MODE_IDS.has(r.itemId)) return r.orderAmount
+    const par = item.parLevels?.[branch!] ?? 0
+    const auto = par > 0 ? Math.max(0, par - r.closingStock) : 0
+    return r.manualOrder ? r.orderAmount : auto
   }
 
   function handleSave() {
     if (!branch) return
-    const itemMap = Object.fromEntries(items.map(i => [i.id, i]))
+    const iMap = Object.fromEntries(items.map(i => [i.id, i]))
     const records: DailyStockRecord[] = rows.map(r => {
+      const item = iMap[r.itemId]
       const isOrderMode = ORDER_MODE_IDS.has(r.itemId)
       return {
         id: makeId(),
@@ -126,7 +131,7 @@ export default function DailyPage() {
         branch,
         itemId: r.itemId,
         openingStock: 0,
-        received: r.orderAmount,  // always use the stored orderAmount (auto or manual)
+        received: getDisplayOrder(r, item),
         used: 0,
         closingStock: isOrderMode ? 0 : r.closingStock,
       }
@@ -137,8 +142,12 @@ export default function DailyPage() {
 
   function handleGenerateOrderText() {
     if (!branch) return
+    const iMap = Object.fromEntries(items.map(i => [i.id, i]))
     const orderMap: Record<string, number> = {}
-    for (const row of rows) orderMap[row.itemId] = row.orderAmount
+    for (const row of rows) {
+      const item = iMap[row.itemId]
+      if (item) orderMap[row.itemId] = getDisplayOrder(row, item)
+    }
     const text = generateOrderText(date, branch, orderMap)
     setOrderTextContent(text)
     setCopied(false)
@@ -167,7 +176,7 @@ export default function DailyPage() {
         if (ORDER_MODE_IDS.has(r.itemId)) {
           next[idx] = { ...next[idx], orderAmount: r.closing! }
         } else {
-          next[idx] = { ...next[idx], closingStock: r.closing! }
+          next[idx] = { ...next[idx], closingStock: r.closing!, manualOrder: false }
         }
       }
       return next
@@ -257,9 +266,14 @@ export default function DailyPage() {
                     const row = rows.find(r => r.itemId === item.id)
                     if (!row) return null
                     const isOrderMode = ORDER_MODE_IDS.has(item.id)
-                    const orderAmount = row.orderAmount
-                    const monthlyUsed = (monthlyOrderMap[item.id] ?? 0) + orderAmount
                     const par = item.parLevels?.[branch] ?? 0
+                    // Compute To Order live from par - closing for normal items.
+                    // Only use stored orderAmount when user has manually overridden it.
+                    const autoOrder = par > 0 ? Math.max(0, par - row.closingStock) : 0
+                    const displayOrder = isOrderMode
+                      ? row.orderAmount
+                      : (row.manualOrder ? row.orderAmount : autoOrder)
+                    const monthlyUsed = (monthlyOrderMap[item.id] ?? 0) + displayOrder
                     const isLow = !isOrderMode && par > 0 && row.closingStock < par * 0.3
                     return (
                       <tr
@@ -292,7 +306,7 @@ export default function DailyPage() {
                         <td className="px-2 py-1.5">
                           <input
                             type="number"
-                            value={row.orderAmount || ''}
+                            value={displayOrder || ''}
                             placeholder="0"
                             onChange={e => updateOrder(item.id, parseFloat(e.target.value) || 0)}
                             className={`w-full text-center border rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 font-medium ${
