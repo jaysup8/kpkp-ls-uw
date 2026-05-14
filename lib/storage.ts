@@ -48,13 +48,19 @@ export function getItems(): StockItem[] {
 
   // Step 2: if a stored item has the same Thai name as an INITIAL_ITEMS entry but
   // a different id (e.g. manually added before the canonical item was defined),
-  // reassign it to the canonical id so the order-text lookup always matches.
-  const canonicalByName = new Map(INITIAL_ITEMS.map(i => [i.nameTh, i.id]))
+  // reassign it to the canonical id AND restore the canonical branches restriction
+  // so branch-specific items (e.g. หมึกกรอบ → udomsuk only) stay correct.
+  const canonicalByName = new Map(INITIAL_ITEMS.map(i => [i.nameTh, i]))
   const canonicalIdSet  = new Set(INITIAL_ITEMS.map(i => i.id))
   stored = stored.map(s => {
-    const canonicalId = canonicalByName.get(s.nameTh)
-    if (canonicalId && s.id !== canonicalId && !canonicalIdSet.has(s.id)) {
-      return { ...s, id: canonicalId }
+    const canonical = canonicalByName.get(s.nameTh)
+    if (canonical && s.id !== canonical.id && !canonicalIdSet.has(s.id)) {
+      return {
+        ...s,
+        id: canonical.id,
+        // Restore branch restriction from canonical definition
+        ...(canonical.branches ? { branches: canonical.branches } : {}),
+      }
     }
     return s
   })

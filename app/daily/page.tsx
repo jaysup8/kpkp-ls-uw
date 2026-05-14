@@ -17,7 +17,9 @@ function makeId() {
 }
 
 // Items where user inputs ต้องสั่งเพิ่ม directly (no closing stock concept)
-const ORDER_MODE_IDS = new Set(['r12', 'r13', 'r15', 'r16', 'r17', 'r18', 'r19', 'r20', 'r21', 'r22'])
+// Items where user inputs ต้องสั่งเพิ่ม directly (no closing stock — ordered by piece/baht)
+// r21 (หมึกกรอบ) and r22 (เส้นใหญ่) are kg items with closing stock, so excluded here
+const ORDER_MODE_IDS = new Set(['r12', 'r13', 'r15', 'r16', 'r17', 'r18', 'r19', 'r20'])
 
 type RowState = {
   itemId: string
