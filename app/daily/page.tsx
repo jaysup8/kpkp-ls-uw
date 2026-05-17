@@ -80,11 +80,14 @@ export default function DailyPage() {
     setRows(allItems.map(item => {
       const ex = todayRecords.find(r => r.itemId === item.id)
       const closing = ex?.closingStock ?? 0
+      // Items that don't use the auto-formula behave like ORDER_MODE for orderAmount —
+      // restore the saved value directly.
+      const usesAuto = item.autoOrder && !ORDER_MODE_IDS.has(item.id)
       return {
         itemId: item.id,
         closingStock: closing,
-        orderAmount: ORDER_MODE_IDS.has(item.id) ? (ex?.received ?? 0) : 0,
-        manualOrder: false,  // always recompute from par on load
+        orderAmount: usesAuto ? 0 : (ex?.received ?? 0),
+        manualOrder: false,  // auto items always recompute from par on load
         ordered: ex?.ordered ?? false,
       }
     }))
@@ -134,6 +137,8 @@ export default function DailyPage() {
   // Compute the effective To Order for a row (same logic as render)
   function getDisplayOrder(r: RowState, item: StockItem): number {
     if (ORDER_MODE_IDS.has(r.itemId)) return r.orderAmount
+    // If item is not configured for auto-formula, always use manual value
+    if (!item?.autoOrder) return r.orderAmount
     const par = item.parLevels?.[branch!] ?? 0
     const auto = par > 0 ? Math.max(0, par - r.closingStock) : 0
     return r.manualOrder ? r.orderAmount : auto
@@ -293,11 +298,12 @@ export default function DailyPage() {
                     const row = rows.find(r => r.itemId === item.id)
                     if (!row) return null
                     const isOrderMode = ORDER_MODE_IDS.has(item.id)
+                    const usesAutoFormula = !isOrderMode && !!item.autoOrder
                     const par = item.parLevels?.[branch] ?? 0
-                    // Compute To Order live from par - closing for normal items.
-                    // Only use stored orderAmount when user has manually overridden it.
+                    // Compute To Order live from par - closing only when item is configured for auto.
+                    // Items with autoOrder=false (or ORDER_MODE) always use the stored value.
                     const autoOrder = par > 0 ? Math.max(0, par - row.closingStock) : 0
-                    const displayOrder = isOrderMode
+                    const displayOrder = !usesAutoFormula
                       ? row.orderAmount
                       : (row.manualOrder ? row.orderAmount : autoOrder)
                     const monthlyUsed = (monthlyOrderMap[item.id] ?? 0) + displayOrder

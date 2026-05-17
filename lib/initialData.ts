@@ -4,13 +4,17 @@ function item(
   id: string, nameTh: string, nameEn: string, unit: string,
   category: StockItem['category'], supplier: string,
   lasallePar: number, udomsukPar: number,
-  opts?: Partial<Pick<StockItem, 'branches' | 'active' | 'costPerUnit'>>
+  opts?: Partial<Pick<StockItem, 'branches' | 'active' | 'costPerUnit' | 'autoOrder'>>
 ): StockItem {
+  // Default: only Raw Food items auto-compute To Order = par - closing.
+  // Other categories require manual To Order entry.
+  const autoOrder = opts?.autoOrder ?? (category === 'raw')
   return {
     id, nameTh, nameEn, unit, category, supplier,
     parLevels: { lasalle: lasallePar, udomsuk: udomsukPar },
     costPerUnit: opts?.costPerUnit ?? 0,
     active: opts?.active ?? true,
+    autoOrder,
     ...(opts?.branches ? { branches: opts.branches } : {}),
   }
 }

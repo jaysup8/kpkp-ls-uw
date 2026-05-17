@@ -8,8 +8,9 @@ import {
   getSelectedBranch,
   calcMaeManee,
   calcTotalRevenue,
+  calcTotalExpenses,
 } from '@/lib/storage'
-import type { DailyPL, Branch } from '@/lib/types'
+import type { DailyPL, Branch, OtherExpense } from '@/lib/types'
 import { BRANCH_NAMES } from '@/lib/types'
 
 function today() {
@@ -26,6 +27,11 @@ function emptyPL(date: string, branch: Branch): DailyPL {
     grabSales: 0,
     robinhoodSales: 0,
     shopeeSales: 0,
+    freshMarketExpense: 0,
+    freshketExpense: 0,
+    makroExpense: 0,
+    franchisorExpense: 0,
+    otherExpenses: [],
     notes: '',
   }
 }
@@ -78,6 +84,29 @@ export default function PLPage() {
     setSaved(false)
   }
 
+  function addOtherExpense() {
+    setForm(f => f ? { ...f, otherExpenses: [...(f.otherExpenses ?? []), { description: '', amount: 0 }] } : f)
+    setSaved(false)
+  }
+
+  function updateOtherExpense(idx: number, patch: Partial<OtherExpense>) {
+    setForm(f => {
+      if (!f) return f
+      const next = [...(f.otherExpenses ?? [])]
+      next[idx] = { ...next[idx], ...patch }
+      return { ...f, otherExpenses: next }
+    })
+    setSaved(false)
+  }
+
+  function removeOtherExpense(idx: number) {
+    setForm(f => {
+      if (!f) return f
+      return { ...f, otherExpenses: (f.otherExpenses ?? []).filter((_, i) => i !== idx) }
+    })
+    setSaved(false)
+  }
+
   function handleSave() {
     if (!form || !branch) return
     saveDailyPL(branch, { ...form, date, branch })
@@ -89,18 +118,24 @@ export default function PLPage() {
 
   const maeManee = calcMaeManee(form)
   const totalRevenue = calcTotalRevenue(form)
+  const totalExpenses = calcTotalExpenses(form)
+  const netProfit = totalRevenue - totalExpenses
   const diff = totalRevenue - form.targetRevenue
   const pct = form.targetRevenue > 0
     ? Math.min(100, Math.round((totalRevenue / form.targetRevenue) * 100))
     : 0
 
   // ---------- Monthly aggregation helpers ----------
-  function aggregateByMonth(pls: DailyPL[]): Map<string, { total: number; target: number; days: number; pls: DailyPL[] }> {
-    const m = new Map<string, { total: number; target: number; days: number; pls: DailyPL[] }>()
+  function aggregateByMonth(pls: DailyPL[]): Map<string, { total: number; target: number; expenses: number; net: number; days: number; pls: DailyPL[] }> {
+    const m = new Map<string, { total: number; target: number; expenses: number; net: number; days: number; pls: DailyPL[] }>()
     for (const p of pls) {
       const ym = p.date.slice(0, 7)
-      const bucket = m.get(ym) ?? { total: 0, target: 0, days: 0, pls: [] }
-      bucket.total += calcTotalRevenue(p)
+      const bucket = m.get(ym) ?? { total: 0, target: 0, expenses: 0, net: 0, days: 0, pls: [] }
+      const rev = calcTotalRevenue(p)
+      const exp = calcTotalExpenses(p)
+      bucket.total += rev
+      bucket.expenses += exp
+      bucket.net += (rev - exp)
       bucket.target += p.targetRevenue
       bucket.days += 1
       bucket.pls.push(p)
@@ -196,6 +231,75 @@ export default function PLPage() {
                 </p>
               </div>
             </div>
+
+            {/* ----- Expenses section ----- */}
+            <div className="border-t pt-4 mt-4">
+              <div className="flex items-baseline gap-2 mb-3">
+                <h3 className="font-semibold text-red-700 text-sm">รายจ่ายประจำวัน</h3>
+                <span className="text-xs text-slate-400">Daily Expenses</span>
+              </div>
+              <div className="space-y-2.5">
+                <Field label="ตลาดสด"     sub="Fresh Market" value={form.freshMarketExpense ?? 0} onChange={v => update('freshMarketExpense', v)} expense />
+                <Field label="Freshket"    sub="Freshket"     value={form.freshketExpense ?? 0}    onChange={v => update('freshketExpense', v)}    expense />
+                <Field label="Makro"       sub="Makro"        value={form.makroExpense ?? 0}        onChange={v => update('makroExpense', v)}        expense />
+                <Field label="Franchisor"  sub="ส่งจากแฟรนไชส์" value={form.franchisorExpense ?? 0}  onChange={v => update('franchisorExpense', v)}  expense />
+
+                {/* Other expenses with custom descriptions */}
+                <div className="bg-red-50/40 rounded-lg p-3 border border-red-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-red-700">อื่นๆ <span className="text-xs text-slate-400">Others</span></p>
+                    <button
+                      onClick={addOtherExpense}
+                      className="text-xs font-medium text-red-700 hover:text-red-800 px-2 py-0.5 rounded bg-white border border-red-200 hover:bg-red-50"
+                    >
+                      + เพิ่มรายการ
+                    </button>
+                  </div>
+                  {(form.otherExpenses ?? []).length === 0 ? (
+                    <p className="text-xs text-slate-400 text-center py-2">ยังไม่มีรายการ — กด + เพื่อเพิ่ม</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {(form.otherExpenses ?? []).map((e, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <input
+                            value={e.description}
+                            onChange={ev => updateOtherExpense(i, { description: ev.target.value })}
+                            placeholder="รายละเอียด เช่น น้ำแข็ง, น้ำมัน, ค่าส่ง..."
+                            className="flex-1 min-w-0 border border-red-200 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-red-300"
+                          />
+                          <div className="relative w-28 shrink-0">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">฿</span>
+                            <input
+                              type="number"
+                              value={e.amount || ''}
+                              placeholder="0"
+                              onChange={ev => updateOtherExpense(i, { amount: parseFloat(ev.target.value) || 0 })}
+                              className="w-full border border-red-200 rounded-lg pl-5 pr-2 py-1 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-red-300 text-right"
+                            />
+                          </div>
+                          <button
+                            onClick={() => removeOtherExpense(i)}
+                            title="ลบ"
+                            className="text-red-400 hover:text-red-600 text-lg leading-none px-1"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Total expenses auto-line */}
+                <div className="flex items-center justify-between bg-red-50 rounded-lg px-4 py-2.5 border border-red-100">
+                  <div>
+                    <p className="text-sm font-semibold text-red-700">รายจ่ายรวม</p>
+                    <p className="text-xs text-red-400">Total Expenses</p>
+                  </div>
+                  <p className="text-lg font-bold text-red-700">฿{totalExpenses.toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -230,6 +334,43 @@ export default function PLPage() {
                 <span className="font-medium text-slate-600">ส่วนต่าง</span>
                 <span className={`font-bold text-base ${diff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {diff >= 0 ? '+' : ''}฿{diff.toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Expense summary + net profit */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+            <h2 className="font-semibold text-red-700 mb-4">สรุปรายจ่ายและกำไร</h2>
+            <div className="space-y-2 text-sm">
+              {[
+                { label: 'ตลาดสด',    value: form.freshMarketExpense ?? 0 },
+                { label: 'Freshket',   value: form.freshketExpense    ?? 0 },
+                { label: 'Makro',      value: form.makroExpense       ?? 0 },
+                { label: 'Franchisor', value: form.franchisorExpense  ?? 0 },
+              ].map(r => (
+                <div key={r.label} className="flex justify-between">
+                  <span className="text-slate-500">{r.label}</span>
+                  <span className="font-medium">฿{r.value.toLocaleString()}</span>
+                </div>
+              ))}
+              {(form.otherExpenses ?? []).map((e, i) => (
+                <div key={i} className="flex justify-between text-xs">
+                  <span className="text-slate-500">↳ {e.description || `อื่นๆ ${i + 1}`}</span>
+                  <span className="font-medium">฿{(e.amount || 0).toLocaleString()}</span>
+                </div>
+              ))}
+              <div className="border-t pt-2 mt-1 flex justify-between">
+                <span className="font-bold text-red-700">รายจ่ายรวม</span>
+                <span className="font-bold text-red-700">฿{totalExpenses.toLocaleString()}</span>
+              </div>
+              <div className="border-t pt-3 mt-2 flex justify-between items-baseline">
+                <div>
+                  <p className="font-bold text-slate-800">กำไรสุทธิ</p>
+                  <p className="text-xs text-slate-400">Net = รายได้ − รายจ่าย</p>
+                </div>
+                <span className={`font-bold text-2xl ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  ฿{netProfit.toLocaleString()}
                 </span>
               </div>
             </div>
@@ -296,6 +437,8 @@ export default function PLPage() {
                 <th className="text-right px-4 py-3 font-medium text-slate-600">Robin</th>
                 <th className="text-right px-4 py-3 font-medium text-slate-600">Shopee</th>
                 <th className="text-right px-4 py-3 font-medium text-slate-600">รวม</th>
+                <th className="text-right px-4 py-3 font-medium text-red-600">รายจ่าย</th>
+                <th className="text-right px-4 py-3 font-medium text-slate-600">กำไรสุทธิ</th>
                 <th className="text-right px-4 py-3 font-medium text-slate-600">ส่วนต่าง</th>
               </tr>
             </thead>
@@ -303,6 +446,8 @@ export default function PLPage() {
               {history.slice(0, 30).map((h, idx) => {
                 const mm = calcMaeManee(h)
                 const total = calcTotalRevenue(h)
+                const exp = calcTotalExpenses(h)
+                const net = total - exp
                 const d = total - h.targetRevenue
                 return (
                   <tr key={h.date} className={`border-b border-slate-100 ${idx % 2 === 0 ? '' : 'bg-slate-50/50'}`}>
@@ -315,6 +460,10 @@ export default function PLPage() {
                     <td className="px-4 py-2 text-right">฿{h.robinhoodSales.toLocaleString()}</td>
                     <td className="px-4 py-2 text-right">฿{h.shopeeSales.toLocaleString()}</td>
                     <td className="px-4 py-2 text-right font-semibold">฿{total.toLocaleString()}</td>
+                    <td className="px-4 py-2 text-right text-red-600">{exp > 0 ? `฿${exp.toLocaleString()}` : '—'}</td>
+                    <td className={`px-4 py-2 text-right font-semibold ${net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      ฿{net.toLocaleString()}
+                    </td>
                     <td className={`px-4 py-2 text-right font-semibold ${d >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {d >= 0 ? '+' : ''}฿{d.toLocaleString()}
                     </td>
@@ -323,7 +472,7 @@ export default function PLPage() {
               })}
               {history.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-4 py-10 text-center text-slate-400">ยังไม่มีข้อมูล</td>
+                  <td colSpan={12} className="px-4 py-10 text-center text-slate-400">ยังไม่มีข้อมูล</td>
                 </tr>
               )}
             </tbody>
@@ -351,10 +500,12 @@ export default function PLPage() {
 
 // ============================== Monthly view ==============================
 
+type MonthAgg = { total: number; target: number; expenses: number; net: number; days: number; pls: DailyPL[] }
+
 function MonthlyView({
   months, branch, currentMonth,
 }: {
-  months: Map<string, { total: number; target: number; days: number; pls: DailyPL[] }>
+  months: Map<string, MonthAgg>
   branch: Branch
   currentMonth: string
 }) {
@@ -381,7 +532,7 @@ function MonthlyView({
               </p>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
             <div>
               <p className="text-xs text-slate-500">บันทึก</p>
               <p className="font-semibold text-slate-700">{current.days} วัน</p>
@@ -391,10 +542,12 @@ function MonthlyView({
               <p className="font-semibold text-slate-700">฿{Math.round(current.total / Math.max(current.days, 1)).toLocaleString()}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-500">% ของเป้าหมาย</p>
-              <p className="font-semibold text-slate-700">
-                {current.target > 0 ? Math.round((current.total / current.target) * 100) : 0}%
-              </p>
+              <p className="text-xs text-slate-500">รายจ่ายรวม</p>
+              <p className="font-semibold text-red-600">฿{current.expenses.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">กำไรสุทธิ</p>
+              <p className={`font-semibold ${current.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>฿{current.net.toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -423,7 +576,12 @@ function MonthlyView({
                 <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
                   <div className={`h-full ${tint.bar} rounded-full transition-all`} style={{ width: `${(v.total / maxTotal) * 100}%` }} />
                 </div>
-                <p className="text-xs text-slate-400 mt-1">{v.days} วัน · เฉลี่ย ฿{Math.round(v.total / Math.max(v.days, 1)).toLocaleString()}/วัน · เป้า ฿{v.target.toLocaleString()}</p>
+                <p className="text-xs text-slate-400 mt-1">
+                  {v.days} วัน · เฉลี่ย ฿{Math.round(v.total / Math.max(v.days, 1)).toLocaleString()}/วัน · เป้า ฿{v.target.toLocaleString()}
+                  {v.expenses > 0 && (
+                    <span className="ml-2">· รายจ่าย <span className="text-red-500">฿{v.expenses.toLocaleString()}</span> · กำไร <span className={v.net >= 0 ? 'text-green-600' : 'text-red-600'}>฿{v.net.toLocaleString()}</span></span>
+                  )}
+                </p>
               </div>
             )
           })}
@@ -440,8 +598,8 @@ function CompareView({
 }: {
   branch: Branch
   otherBranch: Branch
-  monthsCurrent: Map<string, { total: number; target: number; days: number; pls: DailyPL[] }>
-  monthsOther: Map<string, { total: number; target: number; days: number; pls: DailyPL[] }>
+  monthsCurrent: Map<string, MonthAgg>
+  monthsOther: Map<string, MonthAgg>
   currentMonth: string
 }) {
   const allMonths = Array.from(new Set([...monthsCurrent.keys(), ...monthsOther.keys()])).sort((a, b) => b.localeCompare(a))
@@ -468,6 +626,16 @@ function CompareView({
             <div className="flex items-baseline gap-4 mt-2 text-xs text-slate-500">
               <span>เป้า ฿{(card.m?.target ?? 0).toLocaleString()}</span>
               <span>{card.m?.days ?? 0} วัน</span>
+            </div>
+            <div className="border-t border-slate-200/60 mt-3 pt-3 grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <p className="text-slate-500">รายจ่าย</p>
+                <p className="font-semibold text-red-600">฿{(card.m?.expenses ?? 0).toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-slate-500">กำไรสุทธิ</p>
+                <p className={`font-semibold ${(card.m?.net ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>฿{(card.m?.net ?? 0).toLocaleString()}</p>
+              </div>
             </div>
           </div>
         ))}
@@ -528,14 +696,22 @@ function CompareView({
 }
 
 function Field({
-  label, sub, value, onChange, accent,
+  label, sub, value, onChange, accent, expense,
 }: {
-  label: string; sub: string; value: number; onChange: (v: number) => void; accent?: boolean
+  label: string; sub: string; value: number; onChange: (v: number) => void
+  accent?: boolean
+  expense?: boolean
 }) {
+  const labelColor = expense ? 'text-red-700' : accent ? 'text-blue-700' : 'text-slate-700'
+  const inputStyle = expense
+    ? 'border-red-200 focus:ring-red-300 bg-red-50/30'
+    : accent
+      ? 'border-blue-300 focus:ring-blue-400 bg-blue-50'
+      : 'border-slate-200 focus:ring-blue-400'
   return (
     <div className="flex items-center gap-3">
       <div className="w-36 shrink-0">
-        <p className={`text-sm font-medium ${accent ? 'text-blue-700' : 'text-slate-700'}`}>{label}</p>
+        <p className={`text-sm font-medium ${labelColor}`}>{label}</p>
         <p className="text-xs text-slate-400">{sub}</p>
       </div>
       <div className="relative flex-1">
@@ -545,11 +721,7 @@ function Field({
           value={value || ''}
           placeholder="0"
           onChange={e => onChange(parseFloat(e.target.value) || 0)}
-          className={`w-full border rounded-lg pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-2 ${
-            accent
-              ? 'border-blue-300 focus:ring-blue-400 bg-blue-50'
-              : 'border-slate-200 focus:ring-blue-400'
-          }`}
+          className={`w-full border rounded-lg pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-2 ${inputStyle}`}
         />
       </div>
     </div>

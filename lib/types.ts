@@ -17,6 +17,7 @@ export interface StockItem {
   costPerUnit: number
   active: boolean
   branches?: Branch[]  // undefined = all branches; set to restrict to specific branches
+  autoOrder?: boolean  // true = To Order auto-computes as par - closing; false = manual entry
 }
 
 export interface DailyStockRecord {
@@ -32,6 +33,11 @@ export interface DailyStockRecord {
   notes?: string
 }
 
+export interface OtherExpense {
+  description: string
+  amount: number
+}
+
 export interface DailyPL {
   date: string
   branch: Branch
@@ -44,5 +50,13 @@ export interface DailyPL {
   shopeeSales: number      // Shopee
   // auto: เงินโอนแม่มณี = transferTotal - grabSales - robinhoodSales - shopeeSales
   // auto: total = cashSales + เงินโอนแม่มณี + linemanSales + grabSales + robinhoodSales + shopeeSales
+
+  // ---- Expenses (optional for backwards compat) ----
+  freshMarketExpense?: number    // ตลาดสด
+  freshketExpense?: number       // Freshket
+  makroExpense?: number          // Makro
+  franchisorExpense?: number     // ส่งจากแฟรนไชส์
+  otherExpenses?: OtherExpense[] // อื่นๆ (รายการละบรรทัด)
+
   notes?: string
 }

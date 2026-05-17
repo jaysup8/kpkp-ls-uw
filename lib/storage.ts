@@ -31,11 +31,17 @@ export function setSelectedBranch(branch: Branch): void {
 
 function migrateItems(raw: any[]): StockItem[] {
   return raw.map(i => {
-    if (!i.parLevels && typeof i.parLevel === 'number') {
-      const { parLevel, ...rest } = i
-      return { ...rest, parLevels: { lasalle: parLevel, udomsuk: parLevel } } as StockItem
+    let next = i
+    // parLevel → parLevels
+    if (!next.parLevels && typeof next.parLevel === 'number') {
+      const { parLevel, ...rest } = next
+      next = { ...rest, parLevels: { lasalle: parLevel, udomsuk: parLevel } }
     }
-    return i as StockItem
+    // autoOrder default: raw → true, others → false
+    if (next.autoOrder === undefined) {
+      next = { ...next, autoOrder: next.category === 'raw' }
+    }
+    return next as StockItem
   })
 }
 
@@ -135,4 +141,17 @@ export function calcMaeManee(pl: Pick<DailyPL, 'transferTotal' | 'grabSales' | '
 export function calcTotalRevenue(pl: Omit<DailyPL, 'date' | 'branch' | 'targetRevenue' | 'notes'>): number {
   const maeManee = calcMaeManee(pl)
   return pl.cashSales + maeManee + pl.linemanSales + pl.grabSales + pl.robinhoodSales + pl.shopeeSales
+}
+
+export function calcTotalExpenses(pl: Pick<DailyPL, 'freshMarketExpense' | 'freshketExpense' | 'makroExpense' | 'franchisorExpense' | 'otherExpenses'>): number {
+  const others = (pl.otherExpenses ?? []).reduce((s, e) => s + (e.amount || 0), 0)
+  return (pl.freshMarketExpense ?? 0)
+       + (pl.freshketExpense ?? 0)
+       + (pl.makroExpense ?? 0)
+       + (pl.franchisorExpense ?? 0)
+       + others
+}
+
+export function calcNetProfit(pl: DailyPL): number {
+  return calcTotalRevenue(pl) - calcTotalExpenses(pl)
 }

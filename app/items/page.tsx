@@ -35,6 +35,7 @@ function setBranchActive(item: StockItem, b: Branch, active: boolean): StockItem
 const BLANK: Omit<StockItem, 'id'> = {
   nameTh: '', nameEn: '', unit: 'kg', category: 'raw', supplier: '-',
   parLevels: { lasalle: 0, udomsuk: 0 }, costPerUnit: 0, active: true,
+  autoOrder: true,  // default ON for new items; user can toggle per-item
 }
 
 const INPUT = 'w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white'
@@ -112,6 +113,14 @@ export default function ItemsPage() {
     ))
   }
 
+  function toggleAutoOrder(item: StockItem) {
+    persist(items.map(i => i.id === item.id ? { ...i, autoOrder: !i.autoOrder } : i))
+  }
+
+  function setCategoryAutoOrder(category: Category, value: boolean) {
+    persist(items.map(i => i.category === category ? { ...i, autoOrder: value } : i))
+  }
+
   function updateForm(field: keyof StockItem, value: any) {
     setEditForm(f => f ? { ...f, [field]: value } : f)
   }
@@ -149,13 +158,35 @@ export default function ItemsPage() {
       {CATEGORIES.map(cat => {
         const catItems = items.filter(i => i.category === cat.value)
         const showNewHere = newItem?.category === cat.value
+        const catAutoCount = catItems.filter(i => i.autoOrder).length
+        const allAuto = catItems.length > 0 && catAutoCount === catItems.length
+        const noneAuto = catAutoCount === 0
 
         return (
           <div key={cat.value} className="mb-8">
-            <h2 className="font-semibold text-slate-700 mb-3">
-              {cat.label}{' '}
-              <span className="text-slate-400 font-normal text-sm">({catItems.length} รายการ)</span>
-            </h2>
+            <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
+              <h2 className="font-semibold text-slate-700">
+                {cat.label}{' '}
+                <span className="text-slate-400 font-normal text-sm">({catItems.length} รายการ)</span>
+              </h2>
+              {catItems.length > 0 && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-slate-500">สูตร Auto To Order ทั้งหมวด:</span>
+                  <button
+                    onClick={() => setCategoryAutoOrder(cat.value, true)}
+                    className={`px-2.5 py-1 rounded-full font-medium transition-colors ${allAuto ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}
+                  >
+                    เปิดทั้งหมด
+                  </button>
+                  <button
+                    onClick={() => setCategoryAutoOrder(cat.value, false)}
+                    className={`px-2.5 py-1 rounded-full font-medium transition-colors ${noneAuto ? 'bg-slate-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                  >
+                    ปิดทั้งหมด
+                  </button>
+                </div>
+              )}
+            </div>
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
@@ -167,6 +198,9 @@ export default function ItemsPage() {
                     </th>
                     <th colSpan={2} className="text-center px-3 py-2 font-semibold text-emerald-700 bg-emerald-50 border-b border-l border-emerald-100 w-40">
                       🟢 Udomsuk
+                    </th>
+                    <th rowSpan={2} className="text-center px-2 py-3 font-medium text-slate-600 border-b border-slate-200 w-20" title="Auto To Order = Par - Closing Stock">
+                      Auto<br /><span className="font-normal opacity-60 text-[10px]">สูตร</span>
                     </th>
                     <th rowSpan={2} className="text-right px-4 py-3 font-medium text-slate-600 border-b border-slate-200 w-20">ราคา/หน่วย</th>
                     <th rowSpan={2} className="px-4 py-3 border-b border-slate-200 w-24" />
@@ -233,6 +267,20 @@ export default function ItemsPage() {
                           ) : <span className="text-slate-300">—</span>}
                         </td>
 
+                        {/* Auto To Order toggle */}
+                        <td className="px-2 py-2 text-center">
+                          <button
+                            onClick={() => toggleAutoOrder(item)}
+                            title="สูตร Auto To Order = Par - Closing Stock"
+                            className={`text-xs px-2 py-0.5 rounded-full font-medium transition-colors ${
+                              item.autoOrder
+                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                            }`}
+                          >
+                            {item.autoOrder ? 'ON' : 'OFF'}
+                          </button>
+                        </td>
                         <td className="px-4 py-2.5 text-right text-slate-500">฿{item.costPerUnit}</td>
                         <td className="px-4 py-2.5">
                           <div className="flex gap-3 justify-end">
@@ -252,7 +300,7 @@ export default function ItemsPage() {
                       {/* Inline edit form */}
                       {editingId === item.id && editForm && (
                         <tr key={`edit-${item.id}`} className="border-b border-blue-200 bg-blue-50">
-                          <td colSpan={8} className="px-4 py-4">
+                          <td colSpan={9} className="px-4 py-4">
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                               <Field label="ชื่อไทย *">
                                 <input value={editForm.nameTh} onChange={e => updateForm('nameTh', e.target.value)} className={INPUT} placeholder="หมูบด" />
@@ -281,7 +329,7 @@ export default function ItemsPage() {
                                 <input type="number" value={editForm.parLevels.udomsuk || ''} onChange={e => updateFormPar('udomsuk', parseFloat(e.target.value) || 0)} className={INPUT} placeholder="0" />
                               </Field>
                             </div>
-                            <div className="flex items-center gap-4 mb-3">
+                            <div className="flex items-center gap-4 mb-3 flex-wrap">
                               {BRANCHES.map(b => (
                                 <label key={b} className="flex items-center gap-2 text-sm cursor-pointer">
                                   <input
@@ -295,6 +343,15 @@ export default function ItemsPage() {
                                   </span>
                                 </label>
                               ))}
+                              <label className="flex items-center gap-2 text-sm cursor-pointer ml-auto" title="To Order = Par - Closing Stock">
+                                <input
+                                  type="checkbox"
+                                  checked={!!editForm.autoOrder}
+                                  onChange={e => updateForm('autoOrder', e.target.checked)}
+                                  className="w-4 h-4 accent-emerald-600"
+                                />
+                                <span className="text-emerald-700 font-medium">⚙️ ใช้สูตร Auto To Order (Par − คงเหลือ)</span>
+                              </label>
                             </div>
                             <div className="flex gap-2">
                               <button onClick={handleSave} disabled={!editForm.nameTh} className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
@@ -313,7 +370,7 @@ export default function ItemsPage() {
                   {/* New item form */}
                   {showNewHere && newItem && (
                     <tr className="border-b border-blue-200 bg-blue-50">
-                      <td colSpan={8} className="px-4 py-4">
+                      <td colSpan={9} className="px-4 py-4">
                         <p className="text-xs font-semibold text-blue-700 mb-3">+ เพิ่มรายการใหม่</p>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                           <Field label="ชื่อไทย *">
@@ -343,7 +400,7 @@ export default function ItemsPage() {
                             <input type="number" value={newItem.parLevels.udomsuk || ''} onChange={e => updateNewPar('udomsuk', parseFloat(e.target.value) || 0)} className={INPUT} placeholder="0" />
                           </Field>
                         </div>
-                        <div className="flex items-center gap-4 mb-3">
+                        <div className="flex items-center gap-4 mb-3 flex-wrap">
                           {BRANCHES.map(b => (
                             <label key={b} className="flex items-center gap-2 text-sm cursor-pointer">
                               <input
@@ -357,6 +414,15 @@ export default function ItemsPage() {
                               </span>
                             </label>
                           ))}
+                          <label className="flex items-center gap-2 text-sm cursor-pointer ml-auto" title="To Order = Par - Closing Stock">
+                            <input
+                              type="checkbox"
+                              checked={!!newItem.autoOrder}
+                              onChange={e => updateNew('autoOrder', e.target.checked)}
+                              className="w-4 h-4 accent-emerald-600"
+                            />
+                            <span className="text-emerald-700 font-medium">⚙️ ใช้สูตร Auto To Order</span>
+                          </label>
                         </div>
                         <div className="flex gap-2">
                           <button onClick={handleSaveNew} disabled={!newItem.nameTh} className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
@@ -372,7 +438,7 @@ export default function ItemsPage() {
 
                   {catItems.length === 0 && !showNewHere && (
                     <tr>
-                      <td colSpan={8} className="px-4 py-8 text-center text-slate-400">ไม่มีรายการ</td>
+                      <td colSpan={9} className="px-4 py-8 text-center text-slate-400">ไม่มีรายการ</td>
                     </tr>
                   )}
                 </tbody>
