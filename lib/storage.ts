@@ -6,6 +6,7 @@ const KEY = {
   branch: 'kpkp_branch',
   stockRecords: (b: Branch) => `kpkp_${b}_stock`,
   dailyPL: (b: Branch) => `kpkp_${b}_pl`,
+  dailyNotes: (b: Branch) => `kpkp_${b}_notes`,
 }
 
 function get<T>(key: string): T | null {
@@ -111,6 +112,19 @@ export function saveDailyPL(branch: Branch, pl: DailyPL): void {
     all.push(pl)
   }
   set(KEY.dailyPL(branch), all)
+}
+
+// Daily notes (per branch + date)
+export function getDailyNote(branch: Branch, date: string): string {
+  const notes = get<Record<string, string>>(KEY.dailyNotes(branch)) ?? {}
+  return notes[date] ?? ''
+}
+
+export function saveDailyNote(branch: Branch, date: string, note: string): void {
+  const notes = get<Record<string, string>>(KEY.dailyNotes(branch)) ?? {}
+  if (note.trim()) notes[date] = note
+  else delete notes[date]
+  set(KEY.dailyNotes(branch), notes)
 }
 
 // Helpers

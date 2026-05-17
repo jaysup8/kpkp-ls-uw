@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getItems, getStockRecords, saveAllStockRecords, getSelectedBranch } from '@/lib/storage'
+import { getItems, getStockRecords, saveAllStockRecords, getSelectedBranch, getDailyNote, saveDailyNote } from '@/lib/storage'
 import { parseStockText } from '@/lib/parseStock'
 import type { ParseResult } from '@/lib/parseStock'
 import { generateOrderText } from '@/lib/orderText'
@@ -26,6 +26,7 @@ type RowState = {
   closingStock: number   // for normal items
   orderAmount: number    // ORDER_MODE: direct input; normal: manual override
   manualOrder: boolean   // normal items only — true when user has manually set To Order
+  ordered: boolean       // user-checked: this item has already been ordered
 }
 
 const CATEGORIES = [
@@ -52,6 +53,9 @@ export default function DailyPage() {
   const [saved, setSaved] = useState(false)
   // monthlyOrderMap: itemId → total ต้องสั่งเพิ่ม for previous days in this month
   const [monthlyOrderMap, setMonthlyOrderMap] = useState<Record<string, number>>({})
+
+  // Daily note (per branch+date) — saved separately
+  const [note, setNote] = useState('')
 
   // Order text modal
   const [showOrderText, setShowOrderText] = useState(false)
@@ -81,6 +85,7 @@ export default function DailyPage() {
         closingStock: closing,
         orderAmount: ORDER_MODE_IDS.has(item.id) ? (ex?.received ?? 0) : 0,
         manualOrder: false,  // always recompute from par on load
+        ordered: ex?.ordered ?? false,
       }
     }))
 
@@ -94,6 +99,7 @@ export default function DailyPage() {
       }
     }
     setMonthlyOrderMap(map)
+    setNote(getDailyNote(b, date))
     setSaved(false)
   }, [date, router])
 
@@ -111,6 +117,18 @@ export default function DailyPage() {
       r.itemId === itemId ? { ...r, orderAmount: value, manualOrder: true } : r
     ))
     setSaved(false)
+  }
+
+  function toggleOrdered(itemId: string) {
+    setRows(prev => prev.map(r =>
+      r.itemId === itemId ? { ...r, ordered: !r.ordered } : r
+    ))
+    setSaved(false)
+  }
+
+  function updateNote(value: string) {
+    setNote(value)
+    if (branch) saveDailyNote(branch, date, value)
   }
 
   // Compute the effective To Order for a row (same logic as render)
@@ -136,6 +154,7 @@ export default function DailyPage() {
         received: getDisplayOrder(r, item),
         used: 0,
         closingStock: isOrderMode ? 0 : r.closingStock,
+        ordered: r.ordered,
       }
     })
     saveAllStockRecords(branch, records)
@@ -236,6 +255,9 @@ export default function DailyPage() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+        <div>
+
       {CATEGORIES.map(cat => {
         const catItems = items.filter(i => i.category === cat.key)
         if (catItems.length === 0) return null
@@ -261,6 +283,9 @@ export default function DailyPage() {
                     <th className="text-center px-4 py-3 font-medium text-slate-600 w-32">
                       ใช้ไป (เดือนนี้)<br /><span className="font-normal opacity-60">Monthly Used</span>
                     </th>
+                    <th className="text-center px-2 py-3 font-medium text-slate-600 w-12" title="สั่งซื้อแล้ว">
+                      ✓<br /><span className="font-normal opacity-60 text-[10px]">Ordered</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -280,7 +305,7 @@ export default function DailyPage() {
                     return (
                       <tr
                         key={item.id}
-                        className={`border-b border-slate-100 ${isLow ? 'bg-red-50' : idx % 2 === 0 ? '' : 'bg-slate-50/50'}`}
+                        className={`border-b border-slate-100 ${row.ordered ? 'bg-emerald-50/60' : isLow ? 'bg-red-50' : idx % 2 === 0 ? '' : 'bg-slate-50/50'}`}
                       >
                         <td className="px-4 py-2">
                           <div className="font-medium text-slate-800">{item.nameTh}</div>
@@ -324,6 +349,17 @@ export default function DailyPage() {
                           <span className="font-semibold text-slate-700">{monthlyUsed || '—'}</span>
                           {isLow && <span className="ml-1 text-xs">⚠️</span>}
                         </td>
+
+                        {/* Ordered checkbox */}
+                        <td className="px-2 py-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={row.ordered}
+                            onChange={() => toggleOrdered(item.id)}
+                            className="w-4 h-4 accent-emerald-600 cursor-pointer"
+                            title={row.ordered ? 'สั่งแล้ว' : 'ยังไม่ได้สั่ง'}
+                          />
+                        </td>
                       </tr>
                     )
                   })}
@@ -341,6 +377,25 @@ export default function DailyPage() {
         >
           บันทึกทั้งหมด
         </button>
+      </div>
+        </div>
+
+        {/* Sticky notes panel — scrolls with the page */}
+        <aside className="lg:sticky lg:top-4 lg:self-start">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-amber-200 bg-amber-100/60">
+              <span className="text-lg">📝</span>
+              <h2 className="font-semibold text-amber-900 text-sm">โน้ตประจำวัน</h2>
+              <span className="text-xs text-amber-600 ml-auto">บันทึกอัตโนมัติ</span>
+            </div>
+            <textarea
+              value={note}
+              onChange={e => updateNote(e.target.value)}
+              placeholder="เขียนโน้ต / รายการสั่งซื้อพิเศษ / ปัญหาที่พบ ..."
+              className="w-full h-[calc(100vh-12rem)] min-h-[400px] p-4 text-sm bg-amber-50 focus:outline-none resize-none placeholder-amber-300 text-amber-900"
+            />
+          </div>
+        </aside>
       </div>
 
       {/* Order text modal */}

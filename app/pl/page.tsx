@@ -35,6 +35,19 @@ const BRANCH_BADGE: Record<Branch, string> = {
   udomsuk:  'bg-emerald-100 text-emerald-700',
 }
 
+const BRANCH_TINT: Record<Branch, { bar: string; soft: string; text: string }> = {
+  lasalle:  { bar: 'bg-blue-500',    soft: 'bg-blue-50',    text: 'text-blue-700' },
+  udomsuk:  { bar: 'bg-emerald-500', soft: 'bg-emerald-50', text: 'text-emerald-700' },
+}
+
+const THAI_MONTHS_SHORT = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
+function fmtMonth(ym: string): string {
+  const [y, m] = ym.split('-')
+  return `${THAI_MONTHS_SHORT[parseInt(m) - 1]} ${y}`
+}
+
+type View = 'day' | 'month' | 'compare'
+
 export default function PLPage() {
   const router = useRouter()
   const [branch, setBranch] = useState<Branch | null>(null)
@@ -42,6 +55,8 @@ export default function PLPage() {
   const [form, setForm] = useState<DailyPL | null>(null)
   const [saved, setSaved] = useState(false)
   const [history, setHistory] = useState<DailyPL[]>([])
+  const [view, setView] = useState<View>('day')
+  const [otherBranchPLs, setOtherBranchPLs] = useState<DailyPL[]>([])
 
   useEffect(() => {
     const b = getSelectedBranch()
@@ -53,7 +68,9 @@ export default function PLPage() {
 
   useEffect(() => {
     if (!branch) return
-    setHistory(getDailyPLs(branch).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30))
+    setHistory(getDailyPLs(branch).sort((a, b) => b.date.localeCompare(a.date)))
+    const other: Branch = branch === 'lasalle' ? 'udomsuk' : 'lasalle'
+    setOtherBranchPLs(getDailyPLs(other))
   }, [branch, saved])
 
   function update(field: keyof DailyPL, value: number | string) {
@@ -77,6 +94,26 @@ export default function PLPage() {
     ? Math.min(100, Math.round((totalRevenue / form.targetRevenue) * 100))
     : 0
 
+  // ---------- Monthly aggregation helpers ----------
+  function aggregateByMonth(pls: DailyPL[]): Map<string, { total: number; target: number; days: number; pls: DailyPL[] }> {
+    const m = new Map<string, { total: number; target: number; days: number; pls: DailyPL[] }>()
+    for (const p of pls) {
+      const ym = p.date.slice(0, 7)
+      const bucket = m.get(ym) ?? { total: 0, target: 0, days: 0, pls: [] }
+      bucket.total += calcTotalRevenue(p)
+      bucket.target += p.targetRevenue
+      bucket.days += 1
+      bucket.pls.push(p)
+      m.set(ym, bucket)
+    }
+    return m
+  }
+
+  const monthsCurrent = aggregateByMonth(history)
+  const monthsOther = aggregateByMonth(otherBranchPLs)
+  const currentMonth = date.slice(0, 7)
+  const otherBranch: Branch = branch === 'lasalle' ? 'udomsuk' : 'lasalle'
+
   return (
     <div>
       {/* Header */}
@@ -91,22 +128,48 @@ export default function PLPage() {
           <p className="text-xs text-slate-400">Daily Sales & Profit/Loss</p>
         </div>
         <div className="flex items-center gap-3">
-          <input
-            type="date"
-            value={date}
-            onChange={e => setDate(e.target.value)}
-            className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white shadow-sm"
-          />
-          <button
-            onClick={handleSave}
-            className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-          >
-            บันทึก
-          </button>
-          {saved && <span className="text-green-600 text-sm font-medium">✓ บันทึกแล้ว</span>}
+          {view === 'day' && (
+            <>
+              <input
+                type="date"
+                value={date}
+                onChange={e => setDate(e.target.value)}
+                className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white shadow-sm"
+              />
+              <button
+                onClick={handleSave}
+                className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+              >
+                บันทึก
+              </button>
+              {saved && <span className="text-green-600 text-sm font-medium">✓ บันทึกแล้ว</span>}
+            </>
+          )}
         </div>
       </div>
 
+      {/* Tab strip */}
+      <div className="flex gap-1 mb-6 border-b border-slate-200">
+        {([
+          { v: 'day' as View,     label: 'รายวัน',      sub: 'Day' },
+          { v: 'month' as View,   label: 'รายเดือน',    sub: 'Monthly' },
+          { v: 'compare' as View, label: 'เทียบสาขา',  sub: 'Compare' },
+        ]).map(t => (
+          <button
+            key={t.v}
+            onClick={() => setView(t.v)}
+            className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              view === t.v
+                ? 'border-blue-600 text-blue-700'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            {t.label} <span className="text-xs opacity-60">{t.sub}</span>
+          </button>
+        ))}
+      </div>
+
+      {view === 'day' && <>
       <div className="grid md:grid-cols-2 gap-6 mb-8">
         {/* Entry form */}
         <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
@@ -237,7 +300,7 @@ export default function PLPage() {
               </tr>
             </thead>
             <tbody>
-              {history.map((h, idx) => {
+              {history.slice(0, 30).map((h, idx) => {
                 const mm = calcMaeManee(h)
                 const total = calcTotalRevenue(h)
                 const d = total - h.targetRevenue
@@ -265,6 +328,199 @@ export default function PLPage() {
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+      </>}
+
+      {view === 'month' && (
+        <MonthlyView months={monthsCurrent} branch={branch} currentMonth={currentMonth} />
+      )}
+
+      {view === 'compare' && (
+        <CompareView
+          branch={branch}
+          otherBranch={otherBranch}
+          monthsCurrent={monthsCurrent}
+          monthsOther={monthsOther}
+          currentMonth={currentMonth}
+        />
+      )}
+    </div>
+  )
+}
+
+// ============================== Monthly view ==============================
+
+function MonthlyView({
+  months, branch, currentMonth,
+}: {
+  months: Map<string, { total: number; target: number; days: number; pls: DailyPL[] }>
+  branch: Branch
+  currentMonth: string
+}) {
+  const sorted = Array.from(months.entries()).sort((a, b) => b[0].localeCompare(a[0]))
+  const current = months.get(currentMonth)
+  const tint = BRANCH_TINT[branch]
+  const maxTotal = Math.max(1, ...sorted.map(([, v]) => v.total))
+
+  return (
+    <div className="space-y-6">
+      {/* Current month spotlight */}
+      {current && (
+        <div className={`rounded-2xl border border-slate-200 p-6 shadow-sm ${tint.soft}`}>
+          <div className="flex items-baseline justify-between mb-4">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-slate-500">เดือนปัจจุบัน · {fmtMonth(currentMonth)}</p>
+              <h2 className={`text-3xl font-bold mt-1 ${tint.text}`}>฿{current.total.toLocaleString()}</h2>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-slate-500">เป้าหมายรวม</p>
+              <p className="text-lg font-semibold text-slate-700">฿{current.target.toLocaleString()}</p>
+              <p className={`text-sm font-medium mt-1 ${current.total >= current.target ? 'text-green-600' : 'text-red-500'}`}>
+                {current.total - current.target >= 0 ? '+' : ''}฿{(current.total - current.target).toLocaleString()}
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3 text-sm">
+            <div>
+              <p className="text-xs text-slate-500">บันทึก</p>
+              <p className="font-semibold text-slate-700">{current.days} วัน</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">เฉลี่ย/วัน</p>
+              <p className="font-semibold text-slate-700">฿{Math.round(current.total / Math.max(current.days, 1)).toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">% ของเป้าหมาย</p>
+              <p className="font-semibold text-slate-700">
+                {current.target > 0 ? Math.round((current.total / current.target) * 100) : 0}%
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* All months bar chart */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+        <h2 className="font-semibold text-slate-700 mb-5">สรุปยอดขายรายเดือน</h2>
+        {sorted.length === 0 && (
+          <p className="text-slate-400 text-sm text-center py-8">ยังไม่มีข้อมูล</p>
+        )}
+        <div className="space-y-3">
+          {sorted.map(([ym, v]) => {
+            const ach = v.target > 0 ? Math.round((v.total / v.target) * 100) : 0
+            return (
+              <div key={ym} className={`p-3 rounded-lg ${ym === currentMonth ? 'bg-blue-50/40 border border-blue-100' : ''}`}>
+                <div className="flex items-baseline justify-between mb-1.5">
+                  <span className="font-medium text-slate-700 text-sm">{fmtMonth(ym)}</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-bold text-slate-800">฿{v.total.toLocaleString()}</span>
+                    <span className={`text-xs font-medium ${ach >= 100 ? 'text-green-600' : 'text-amber-600'}`}>
+                      {ach}%
+                    </span>
+                  </div>
+                </div>
+                <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div className={`h-full ${tint.bar} rounded-full transition-all`} style={{ width: `${(v.total / maxTotal) * 100}%` }} />
+                </div>
+                <p className="text-xs text-slate-400 mt-1">{v.days} วัน · เฉลี่ย ฿{Math.round(v.total / Math.max(v.days, 1)).toLocaleString()}/วัน · เป้า ฿{v.target.toLocaleString()}</p>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================== Compare view ==============================
+
+function CompareView({
+  branch, otherBranch, monthsCurrent, monthsOther, currentMonth,
+}: {
+  branch: Branch
+  otherBranch: Branch
+  monthsCurrent: Map<string, { total: number; target: number; days: number; pls: DailyPL[] }>
+  monthsOther: Map<string, { total: number; target: number; days: number; pls: DailyPL[] }>
+  currentMonth: string
+}) {
+  const allMonths = Array.from(new Set([...monthsCurrent.keys(), ...monthsOther.keys()])).sort((a, b) => b.localeCompare(a))
+  const tintA = BRANCH_TINT[branch]
+  const tintB = BRANCH_TINT[otherBranch]
+  const curA = monthsCurrent.get(currentMonth)
+  const curB = monthsOther.get(currentMonth)
+  const max = Math.max(1,
+    ...allMonths.map(m => Math.max(monthsCurrent.get(m)?.total ?? 0, monthsOther.get(m)?.total ?? 0))
+  )
+
+  return (
+    <div className="space-y-6">
+      {/* Current month side-by-side */}
+      <div className="grid md:grid-cols-2 gap-4">
+        {[
+          { b: branch, label: BRANCH_NAMES[branch], tint: tintA, m: curA },
+          { b: otherBranch, label: BRANCH_NAMES[otherBranch], tint: tintB, m: curB },
+        ].map(card => (
+          <div key={card.b} className={`rounded-2xl border border-slate-200 p-6 shadow-sm ${card.tint.soft}`}>
+            <p className="text-xs uppercase tracking-wide text-slate-500">{fmtMonth(currentMonth)}</p>
+            <h3 className={`font-semibold mt-0.5 ${card.tint.text}`}>{card.label}</h3>
+            <p className="text-3xl font-bold text-slate-800 mt-3">฿{(card.m?.total ?? 0).toLocaleString()}</p>
+            <div className="flex items-baseline gap-4 mt-2 text-xs text-slate-500">
+              <span>เป้า ฿{(card.m?.target ?? 0).toLocaleString()}</span>
+              <span>{card.m?.days ?? 0} วัน</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Side-by-side monthly bars */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-semibold text-slate-700">เทียบยอดขายรายเดือน</h2>
+          <div className="flex items-center gap-4 text-xs">
+            <div className="flex items-center gap-1.5">
+              <div className={`w-3 h-3 rounded-sm ${tintA.bar}`} />
+              <span className="text-slate-600">{BRANCH_NAMES[branch]}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className={`w-3 h-3 rounded-sm ${tintB.bar}`} />
+              <span className="text-slate-600">{BRANCH_NAMES[otherBranch]}</span>
+            </div>
+          </div>
+        </div>
+        {allMonths.length === 0 && <p className="text-slate-400 text-sm text-center py-8">ยังไม่มีข้อมูล</p>}
+        <div className="space-y-5">
+          {allMonths.map(ym => {
+            const a = monthsCurrent.get(ym)?.total ?? 0
+            const b = monthsOther.get(ym)?.total ?? 0
+            const diff = a - b
+            return (
+              <div key={ym}>
+                <div className="flex items-baseline justify-between mb-2">
+                  <span className="font-medium text-slate-700 text-sm">{fmtMonth(ym)}</span>
+                  <span className={`text-xs font-semibold ${diff > 0 ? tintA.text : diff < 0 ? tintB.text : 'text-slate-500'}`}>
+                    {diff > 0 ? `${BRANCH_NAMES[branch]} นำ ฿${diff.toLocaleString()}` : diff < 0 ? `${BRANCH_NAMES[otherBranch]} นำ ฿${(-diff).toLocaleString()}` : 'เท่ากัน'}
+                  </span>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="w-20 shrink-0 text-slate-500">{BRANCH_NAMES[branch]}</span>
+                    <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
+                      <div className={`h-full ${tintA.bar}`} style={{ width: `${(a / max) * 100}%` }} />
+                    </div>
+                    <span className="w-24 text-right font-medium text-slate-700">฿{a.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="w-20 shrink-0 text-slate-500">{BRANCH_NAMES[otherBranch]}</span>
+                    <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
+                      <div className={`h-full ${tintB.bar}`} style={{ width: `${(b / max) * 100}%` }} />
+                    </div>
+                    <span className="w-24 text-right font-medium text-slate-700">฿{b.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>

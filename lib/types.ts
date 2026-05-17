@@ -28,6 +28,7 @@ export interface DailyStockRecord {
   received: number
   used: number
   closingStock: number
+  ordered?: boolean   // user has checked "ordered" — already requested from supplier
   notes?: string
 }
 
