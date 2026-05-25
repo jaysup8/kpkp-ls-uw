@@ -29,7 +29,12 @@
       "Bash(PATH='/c/Program Files/nodejs:__TRACKED_VAR__' npm install @libsql/client)",
       "Bash(mkdir -p \"C:/Users/JAY168/Documents/GitHub/kpkp ls uw/.claude/worktrees/great-brown-692874/app/api/items/[id]\" && mkdir -p \"C:/Users/JAY168/Documents/GitHub/kpkp ls uw/.claude/worktrees/great-brown-692874/app/api/stock\" && mkdir -p \"C:/Users/JAY168/Documents/GitHub/kpkp ls uw/.claude/worktrees/great-brown-692874/app/api/pl\" && mkdir -p \"C:/Users/JAY168/Documents/GitHub/kpkp ls uw/.claude/worktrees/great-brown-692874/app/api/notes\" && mkdir -p \"C:/Users/JAY168/Documents/GitHub/kpkp ls uw/.claude/worktrees/great-brown-692874/app/api/migrate\")",
       "Bash(PATH='/c/Program Files/nodejs:__TRACKED_VAR__' node -e ' *)",
-      "Bash(PATH='/c/Program Files/nodejs:__TRACKED_VAR__' npm run build)"
+      "Bash(PATH='/c/Program Files/nodejs:__TRACKED_VAR__' npm run build)",
+      "mcp__Claude_in_Chrome__list_connected_browsers",
+      "Bash(PATH='/c/Program Files/nodejs:__TRACKED_VAR__' /c/Users/JAY168/AppData/Roaming/npm/vercel --prod)",
+      "Bash(PATH='/c/Program Files/nodejs:__TRACKED_VAR__' /c/Users/JAY168/AppData/Roaming/npm/vercel logs https://great-brown-692874.vercel.app)",
+      "Bash(curl -s \"https://great-brown-692874.vercel.app/api/items\")",
+      "Bash(PATH='/c/Program Files/nodejs:__TRACKED_VAR__' npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities)"
     ]
   }
 }

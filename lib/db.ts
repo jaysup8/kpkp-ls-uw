@@ -74,6 +74,11 @@ export async function initDb(): Promise<void> {
     await db.execute(sql)
   }
 
+  // Add sort_order column if it doesn't exist yet (safe migration)
+  try {
+    await db.execute('ALTER TABLE items ADD COLUMN sort_order INTEGER DEFAULT 0')
+  } catch { /* column already exists — ignore */ }
+
   // Seed initial items if table is empty
   const count = await db.execute('SELECT COUNT(*) as n FROM items')
   const n = Number((count.rows[0] as unknown as { n: number }).n)
@@ -83,11 +88,12 @@ export async function initDb(): Promise<void> {
 }
 
 async function seedItems(db: ReturnType<typeof createClient>, items: StockItem[]) {
-  for (const item of items) {
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
     await db.execute({
       sql: `INSERT OR IGNORE INTO items
-        (id, name_th, name_en, unit, category, supplier, par_lasalle, par_udomsuk, cost_per_unit, active, auto_order, branches)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, name_th, name_en, unit, category, supplier, par_lasalle, par_udomsuk, cost_per_unit, active, auto_order, branches, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         item.id,
         item.nameTh,
@@ -101,6 +107,7 @@ async function seedItems(db: ReturnType<typeof createClient>, items: StockItem[]
         item.active ? 1 : 0,
         item.autoOrder ? 1 : 0,
         item.branches ? JSON.stringify(item.branches) : null,
+        (i + 1) * 10,
       ],
     })
   }

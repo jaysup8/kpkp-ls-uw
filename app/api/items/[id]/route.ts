@@ -26,6 +26,7 @@ export async function PATCH(
     if (patch.costPerUnit !== undefined)  { sets.push('cost_per_unit=?'); args.push(patch.costPerUnit) }
     if (patch.active !== undefined)       { sets.push('active=?');         args.push(patch.active ? 1 : 0) }
     if (patch.autoOrder !== undefined)    { sets.push('auto_order=?');     args.push(patch.autoOrder ? 1 : 0) }
+    if (patch.sortOrder !== undefined)    { sets.push('sort_order=?');     args.push(patch.sortOrder) }
     if ('branches' in patch) {
       sets.push('branches=?')
       args.push(patch.branches ? JSON.stringify(patch.branches) : null)

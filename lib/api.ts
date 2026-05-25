@@ -32,6 +32,11 @@ export async function deleteItem(id: string): Promise<void> {
   await apiFetch(`/api/items/${id}`, { method: 'DELETE' })
 }
 
+export async function reorderItems(updates: { id: string; sort_order: number }[]): Promise<void> {
+  if (updates.length === 0) return
+  await apiFetch('/api/items/reorder', { method: 'POST', body: JSON.stringify(updates) })
+}
+
 // ─── Stock Records ────────────────────────────────────────────────────────────
 
 export async function fetchStockRecords(branch: Branch, date?: string): Promise<DailyStockRecord[]> {

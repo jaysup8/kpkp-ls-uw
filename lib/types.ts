@@ -18,6 +18,7 @@ export interface StockItem {
   active: boolean
   branches?: Branch[]  // undefined = all branches; set to restrict to specific branches
   autoOrder?: boolean  // true = To Order auto-computes as par - closing; false = manual entry
+  sortOrder?: number   // display order within category; lower = higher in list
 }
 
 export interface DailyStockRecord {
