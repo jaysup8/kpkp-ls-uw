@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- White fill -->
+  <rect width="512" height="512" fill="white"/>
+  <circle cx="256" cy="256" r="256" fill="white"/>
+
+  <!-- Double ring border -->
+  <circle cx="256" cy="256" r="248" fill="none" stroke="#111111" stroke-width="11"/>
+  <circle cx="256" cy="256" r="234" fill="none" stroke="#111111" stroke-width="5"/>
+
+  <!-- Left house: roof lines extend past center to create cross-over effect -->
+  <polyline points="90,222 175,108 320,222"
+    fill="none" stroke="#111111" stroke-width="9"
+    stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Left outer wall -->
+  <line x1="90" y1="222" x2="90" y2="278" stroke="#111111" stroke-width="9" stroke-linecap="round"/>
+  <!-- Left inner wall (shared) -->
+  <line x1="258" y1="222" x2="258" y2="278" stroke="#111111" stroke-width="9" stroke-linecap="round"/>
+
+  <!-- Right house: roof lines extend past center -->
+  <polyline points="194,222 338,108 422,222"
+    fill="none" stroke="#111111" stroke-width="9"
+    stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Right outer wall -->
+  <line x1="422" y1="222" x2="422" y2="278" stroke="#111111" stroke-width="9" stroke-linecap="round"/>
+
+  <!-- Hanging teardrop leaf from roof crossing point (~256,148) -->
+  <path d="M256,145 C237,153 224,172 224,192 C224,215 238,230 256,232 C274,230 288,215 288,192 C288,172 275,153 256,145 Z"
+    fill="#5C8B5C" stroke="#3A6B3A" stroke-width="2.5"/>
+  <!-- Center vein -->
+  <line x1="256" y1="145" x2="256" y2="232" stroke="#3A6B3A" stroke-width="2"/>
+  <!-- Left veins -->
+  <path d="M256,168 C246,172 239,178 237,185" fill="none" stroke="#3A6B3A" stroke-width="1.5"/>
+  <path d="M256,188 C244,193 238,200 237,208" fill="none" stroke="#3A6B3A" stroke-width="1.5"/>
+  <!-- Right veins -->
+  <path d="M256,168 C266,172 273,178 275,185" fill="none" stroke="#3A6B3A" stroke-width="1.5"/>
+  <path d="M256,188 C268,193 274,200 275,208" fill="none" stroke="#3A6B3A" stroke-width="1.5"/>
+  <!-- Short stem at top -->
+  <line x1="256" y1="145" x2="256" y2="134" stroke="#4A6B2A" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Thai text: ก็เพราะ กะเพรา -->
+  <text x="256" y="315"
+    font-family="Tahoma,Arial Unicode MS,Segoe UI,sans-serif"
+    font-size="44" font-weight="700" fill="#111111" text-anchor="middle">ก็เพราะ กะเพรา</text>
+  <!-- Thai Basil subtitle -->
+  <text x="256" y="350"
+    font-family="Arial,sans-serif"
+    font-size="26" fill="#444444" text-anchor="middle">Thai Basil</text>
+
+  <!-- Three basil leaves at bottom -->
+  <!-- Left leaf tilted left -->
+  <g transform="translate(188,408) rotate(-38)">
+    <path d="M0,-52 C-27,-37 -31,-2 -2,42 C2,42 2,42 2,42 C31,-2 27,-37 0,-52 Z"
+      fill="#5C8B5C" stroke="#3A6B3A" stroke-width="2.2"/>
+    <line x1="0" y1="-52" x2="0" y2="42" stroke="#3A6B3A" stroke-width="1.8"/>
+    <path d="M0,-22 C-16,-13 -21,-4 -21,6" fill="none" stroke="#3A6B3A" stroke-width="1.2"/>
+    <path d="M0,-22 C16,-13 21,-4 21,6" fill="none" stroke="#3A6B3A" stroke-width="1.2"/>
+    <path d="M0,10 C-15,19 -19,27 -18,37" fill="none" stroke="#3A6B3A" stroke-width="1.2"/>
+    <path d="M0,10 C15,19 19,27 18,37" fill="none" stroke="#3A6B3A" stroke-width="1.2"/>
+  </g>
+
+  <!-- Center leaf pointing slightly down -->
+  <g transform="translate(256,398)">
+    <path d="M0,-58 C-30,-42 -34,-4 -2,46 C2,46 2,46 2,46 C34,-4 30,-42 0,-58 Z"
+      fill="#5C8B5C" stroke="#3A6B3A" stroke-width="2.2"/>
+    <line x1="0" y1="-58" x2="0" y2="46" stroke="#3A6B3A" stroke-width="1.8"/>
+    <path d="M0,-28 C-18,-17 -24,-6 -24,5" fill="none" stroke="#3A6B3A" stroke-width="1.2"/>
+    <path d="M0,-28 C18,-17 24,-6 24,5" fill="none" stroke="#3A6B3A" stroke-width="1.2"/>
+    <path d="M0,10 C-17,20 -22,30 -21,40" fill="none" stroke="#3A6B3A" stroke-width="1.2"/>
+    <path d="M0,10 C17,20 22,30 21,40" fill="none" stroke="#3A6B3A" stroke-width="1.2"/>
+  </g>
+
+  <!-- Right leaf tilted right -->
+  <g transform="translate(324,408) rotate(38)">
+    <path d="M0,-52 C-27,-37 -31,-2 -2,42 C2,42 2,42 2,42 C31,-2 27,-37 0,-52 Z"
+      fill="#5C8B5C" stroke="#3A6B3A" stroke-width="2.2"/>
+    <line x1="0" y1="-52" x2="0" y2="42" stroke="#3A6B3A" stroke-width="1.8"/>
+    <path d="M0,-22 C-16,-13 -21,-4 -21,6" fill="none" stroke="#3A6B3A" stroke-width="1.2"/>
+    <path d="M0,-22 C16,-13 21,-4 21,6" fill="none" stroke="#3A6B3A" stroke-width="1.2"/>
+    <path d="M0,10 C-15,19 -19,27 -18,37" fill="none" stroke="#3A6B3A" stroke-width="1.2"/>
+    <path d="M0,10 C15,19 19,27 18,37" fill="none" stroke="#3A6B3A" stroke-width="1.2"/>
+  </g>
+</svg>
