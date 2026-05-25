@@ -126,7 +126,7 @@ export function findItemId(name: string): { itemId: string; matchedName: string 
 export function parseClosingValue(raw: string): number | null {
   const t = raw.trim()
   if (!t) return null  // empty → no update
-  if (/หมด|0$/.test(t)) return 0
+  if (/หมด/.test(t) || t === '0') return 0
   const m = t.match(/(\d+(?:[.,]\d+)?)/)
   if (m) return parseFloat(m[1].replace(',', '.'))
   return null  // can't parse → no update
