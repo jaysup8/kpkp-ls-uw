@@ -1,6 +1,5 @@
 'use client'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { migrateLocalStorage } from '@/lib/api'
 
 const KPKP_KEYS_PREFIX = 'kpkp_'
@@ -29,30 +28,36 @@ function exportData() {
 }
 
 export default function SettingsPage() {
-  const router = useRouter()
   const [toast, setToast] = useState('')
   const [toastOk, setToastOk] = useState(true)
-  const [importing, setImporting] = useState(false)
   const [migrating, setMigrating] = useState(false)
+  const [importing, setImporting] = useState(false)
 
   function showToast(msg: string, ok = true) {
     setToast(msg); setToastOk(ok)
-    setTimeout(() => setToast(''), 4000)
+    setTimeout(() => setToast(''), 5000)
+  }
+
+  async function uploadToCloud(data: Record<string, unknown>, source: string) {
+    const keys = Object.keys(data)
+    if (keys.length === 0) {
+      showToast(`ไม่พบข้อมูล ${source} — ไม่มีอะไรให้อัปโหลด`, false)
+      return false
+    }
+    const result = await migrateLocalStorage(data)
+    showToast(
+      `✓ อัปโหลดสำเร็จ ${source} — สินค้า ${result.itemsImported} · สต็อก ${result.stockImported} · P&L ${result.plImported} · โน้ต ${result.notesImported} — กำลังรีโหลด...`
+    )
+    // Reload so all pages fetch fresh data from Turso
+    setTimeout(() => window.location.href = '/dashboard', 1800)
+    return true
   }
 
   async function handleMigrateToCloud() {
     setMigrating(true)
     try {
       const data = collectLocalStorage()
-      const keys = Object.keys(data)
-      if (keys.length === 0) {
-        showToast('ไม่พบข้อมูลใน localStorage', false)
-        return
-      }
-      const result = await migrateLocalStorage(data)
-      showToast(
-        `✓ อัปโหลดสำเร็จ — สินค้า ${result.itemsImported} รายการ · สต็อก ${result.stockImported} · P&L ${result.plImported} · โน้ต ${result.notesImported}`
-      )
+      await uploadToCloud(data, 'จาก Browser')
     } catch (err) {
       showToast(`เกิดข้อผิดพลาด: ${err}`, false)
     } finally {
@@ -65,9 +70,11 @@ export default function SettingsPage() {
     if (!file) return
     setImporting(true)
     const reader = new FileReader()
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
         const data = JSON.parse(ev.target?.result as string) as Record<string, unknown>
+
+        // Write to localStorage (fallback / legacy)
         let count = 0
         for (const [key, value] of Object.entries(data)) {
           if (key.startsWith(KPKP_KEYS_PREFIX)) {
@@ -75,10 +82,12 @@ export default function SettingsPage() {
             count++
           }
         }
-        showToast(`นำเข้าสำเร็จ ${count} รายการ ✓`)
-        setTimeout(() => router.push('/dashboard'), 1500)
-      } catch {
-        showToast('ไฟล์ไม่ถูกต้อง — กรุณาใช้ไฟล์ backup จากระบบนี้เท่านั้น', false)
+
+        // Also upload straight to cloud so it's immediately visible
+        showToast(`พบ ${count} รายการ — กำลังอัปโหลดไปยัง Cloud...`)
+        await uploadToCloud(data, 'จากไฟล์ Backup')
+      } catch (err) {
+        showToast(`ไฟล์ไม่ถูกต้อง หรือเกิดข้อผิดพลาด: ${err}`, false)
       } finally {
         setImporting(false)
         e.target.value = ''
@@ -107,10 +116,10 @@ export default function SettingsPage() {
           <div className="flex items-start gap-4">
             <span className="text-3xl">☁️</span>
             <div className="flex-1">
-              <h2 className="font-semibold text-slate-800 mb-1">อัปโหลดไปยัง Cloud</h2>
+              <h2 className="font-semibold text-slate-800 mb-1">อัปโหลด Browser → Cloud</h2>
               <p className="text-sm text-slate-500 mb-4">
-                ย้ายข้อมูลจาก Browser ไปยัง Turso Database เพื่อใช้งานบนทุกอุปกรณ์<br />
-                <span className="text-blue-600 font-medium">ข้อมูลเดิมบน Cloud จะถูกอัปเดต (ไม่ถูกลบ)</span>
+                ย้ายข้อมูลที่มีอยู่ใน Browser นี้ไปยัง Turso Cloud<br />
+                ใช้ครั้งเดียวเพื่อ sync ข้อมูลเก่าจาก localStorage
               </p>
               <button
                 onClick={handleMigrateToCloud}
@@ -123,14 +132,31 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* Import from file → auto-uploads to cloud */}
+        <div className="bg-white rounded-xl border border-emerald-200 p-6 shadow-sm">
+          <div className="flex items-start gap-4">
+            <span className="text-3xl">📥</span>
+            <div className="flex-1">
+              <h2 className="font-semibold text-slate-800 mb-1">Import จากไฟล์ Backup → Cloud</h2>
+              <p className="text-sm text-slate-500 mb-4">
+                เลือกไฟล์ backup JSON — ระบบจะอ่านข้อมูลแล้วอัปโหลดไปยัง Cloud ทันที
+              </p>
+              <label className={`inline-block cursor-pointer bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors ${importing ? 'opacity-50 pointer-events-none' : ''}`}>
+                {importing ? 'กำลังนำเข้า...' : 'เลือกไฟล์ Backup (.json)'}
+                <input type="file" accept=".json" onChange={handleImport} className="hidden" />
+              </label>
+            </div>
+          </div>
+        </div>
+
         {/* Export */}
         <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
           <div className="flex items-start gap-4">
             <span className="text-3xl">📤</span>
             <div className="flex-1">
-              <h2 className="font-semibold text-slate-800 mb-1">Export ข้อมูล (Backup)</h2>
+              <h2 className="font-semibold text-slate-800 mb-1">Export ข้อมูลจาก Browser (Backup)</h2>
               <p className="text-sm text-slate-500 mb-4">
-                ดาวน์โหลดข้อมูลทั้งหมดจาก Browser เป็นไฟล์ JSON
+                ดาวน์โหลดข้อมูลที่เก็บใน Browser นี้เป็นไฟล์ JSON
               </p>
               <button
                 onClick={exportData}
@@ -142,26 +168,8 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Import */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-          <div className="flex items-start gap-4">
-            <span className="text-3xl">📥</span>
-            <div className="flex-1">
-              <h2 className="font-semibold text-slate-800 mb-1">Import จากไฟล์ Backup</h2>
-              <p className="text-sm text-slate-500 mb-4">
-                อัปโหลดไฟล์ backup เพื่อนำเข้าข้อมูลไปยัง Browser<br />
-                <span className="text-amber-600 font-medium">⚠️ ข้อมูลปัจจุบันใน Browser จะถูกแทนที่</span>
-              </p>
-              <label className={`inline-block cursor-pointer bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors ${importing ? 'opacity-50 pointer-events-none' : ''}`}>
-                {importing ? 'กำลังนำเข้า...' : 'เลือกไฟล์ Backup'}
-                <input type="file" accept=".json" onChange={handleImport} className="hidden" />
-              </label>
-            </div>
-          </div>
-        </div>
-
         <p className="text-xs text-slate-400 text-center pt-2">
-          ข้อมูลหลักเก็บใน Turso Cloud Database — ทุกอุปกรณ์จะเห็นข้อมูลเดียวกัน
+          ข้อมูลหลักเก็บใน Turso Cloud — ทุกอุปกรณ์เห็นข้อมูลเดียวกัน
         </p>
       </div>
     </div>
