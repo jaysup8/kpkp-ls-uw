@@ -2,14 +2,12 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  getDailyPL,
-  getDailyPLs,
-  saveDailyPL,
   getSelectedBranch,
   calcMaeManee,
   calcTotalRevenue,
   calcTotalExpenses,
 } from '@/lib/storage'
+import { fetchDailyPL, fetchDailyPLs, saveDailyPL } from '@/lib/api'
 import type { DailyPL, Branch, OtherExpense } from '@/lib/types'
 import { BRANCH_NAMES } from '@/lib/types'
 
@@ -68,15 +66,15 @@ export default function PLPage() {
     const b = getSelectedBranch()
     if (!b) { router.push('/'); return }
     setBranch(b)
-    setForm(getDailyPL(b, date) ?? emptyPL(date, b))
+    fetchDailyPL(b, date).then(pl => setForm(pl ?? emptyPL(date, b))).catch(console.error)
     setSaved(false)
   }, [date, router])
 
   useEffect(() => {
     if (!branch) return
-    setHistory(getDailyPLs(branch).sort((a, b) => b.date.localeCompare(a.date)))
+    fetchDailyPLs(branch).then(pls => setHistory([...pls].sort((a, b) => b.date.localeCompare(a.date)))).catch(console.error)
     const other: Branch = branch === 'lasalle' ? 'udomsuk' : 'lasalle'
-    setOtherBranchPLs(getDailyPLs(other))
+    fetchDailyPLs(other).then(setOtherBranchPLs).catch(console.error)
   }, [branch, saved])
 
   function update(field: keyof DailyPL, value: number | string) {
@@ -107,11 +105,11 @@ export default function PLPage() {
     setSaved(false)
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!form || !branch) return
-    saveDailyPL(branch, { ...form, date, branch })
+    await saveDailyPL({ ...form, date, branch })
     setSaved(true)
-    setHistory(getDailyPLs(branch).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30))
+    fetchDailyPLs(branch).then(pls => setHistory([...pls].sort((a, b) => b.date.localeCompare(a.date)))).catch(console.error)
   }
 
   if (!branch || !form) return null

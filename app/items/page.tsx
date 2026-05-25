@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getItems, saveItems, getSelectedBranch } from '@/lib/storage'
+import { getSelectedBranch } from '@/lib/storage'
+import { fetchItems, saveItems } from '@/lib/api'
 import type { StockItem, Category, Branch } from '@/lib/types'
 
 const CATEGORIES: { value: Category; label: string }[] = [
@@ -59,12 +60,12 @@ export default function ItemsPage() {
 
   useEffect(() => {
     if (!getSelectedBranch()) { router.push('/'); return }
-    setItems(getItems())
+    fetchItems().then(setItems).catch(console.error)
   }, [router])
 
   function persist(updated: StockItem[]) {
     setItems(updated)
-    saveItems(updated)
+    saveItems(updated).catch(console.error)
   }
 
   function showToast(msg: string) {

@@ -1,7 +1,8 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { getItems, getStockRecords, saveAllStockRecords, getSelectedBranch, getDailyNote, saveDailyNote } from '@/lib/storage'
+import { getSelectedBranch } from '@/lib/storage'
+import { fetchItems, fetchStockRecords, saveStockRecords, fetchDailyNote, saveDailyNote } from '@/lib/api'
 import { parseStockText } from '@/lib/parseStock'
 import type { ParseResult } from '@/lib/parseStock'
 import { generateOrderText } from '@/lib/orderText'
@@ -51,6 +52,9 @@ export default function DailyPage() {
   const [items, setItems] = useState<StockItem[]>([])
   const [rows, setRows] = useState<RowState[]>([])
   const [saved, setSaved] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   // monthlyOrderMap: itemId → total ต้องสั่งเพิ่ม for previous days in this month
   const [monthlyOrderMap, setMonthlyOrderMap] = useState<Record<string, number>>({})
 
@@ -68,43 +72,50 @@ export default function DailyPage() {
   const [pasteText, setPasteText] = useState('')
   const [parseResults, setParseResults] = useState<ParseResult[]>([])
 
+  const loadData = useCallback(async (b: Branch, selectedDate: string) => {
+    setLoading(true)
+    try {
+      const [allItemsRaw, todayRecords, allRecords, noteText] = await Promise.all([
+        fetchItems(),
+        fetchStockRecords(b, selectedDate),
+        fetchStockRecords(b),
+        fetchDailyNote(b, selectedDate),
+      ])
+      const allItems = allItemsRaw.filter(i => i.active && (!i.branches || i.branches.includes(b)))
+      setItems(allItems)
+      setRows(allItems.map(item => {
+        const ex = todayRecords.find(r => r.itemId === item.id)
+        const closing = ex?.closingStock ?? 0
+        const usesAuto = item.autoOrder && !ORDER_MODE_IDS.has(item.id)
+        return {
+          itemId: item.id,
+          closingStock: closing,
+          orderAmount: usesAuto ? 0 : (ex?.received ?? 0),
+          manualOrder: false,
+          ordered: ex?.ordered ?? false,
+        }
+      }))
+      const monthPrefix = selectedDate.slice(0, 7)
+      const map: Record<string, number> = {}
+      for (const r of allRecords) {
+        if (r.date.startsWith(monthPrefix) && r.date !== selectedDate) {
+          map[r.itemId] = (map[r.itemId] ?? 0) + r.received
+        }
+      }
+      setMonthlyOrderMap(map)
+      setNote(noteText)
+      setSaved(false)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     const b = getSelectedBranch()
     if (!b) { router.push('/'); return }
     setBranch(b)
-    const allItems = getItems().filter(i => i.active && (!i.branches || i.branches.includes(b)))
-    setItems(allItems)
-
-    // Load today's saved values
-    const todayRecords = getStockRecords(b, date)
-    setRows(allItems.map(item => {
-      const ex = todayRecords.find(r => r.itemId === item.id)
-      const closing = ex?.closingStock ?? 0
-      // Items that don't use the auto-formula behave like ORDER_MODE for orderAmount —
-      // restore the saved value directly.
-      const usesAuto = item.autoOrder && !ORDER_MODE_IDS.has(item.id)
-      return {
-        itemId: item.id,
-        closingStock: closing,
-        orderAmount: usesAuto ? 0 : (ex?.received ?? 0),
-        manualOrder: false,  // auto items always recompute from par on load
-        ordered: ex?.ordered ?? false,
-      }
-    }))
-
-    // Build monthly sum of ต้องสั่งเพิ่ม (received) excluding today
-    const monthPrefix = date.slice(0, 7)
-    const allRecords = getStockRecords(b)
-    const map: Record<string, number> = {}
-    for (const r of allRecords) {
-      if (r.date.startsWith(monthPrefix) && r.date !== date) {
-        map[r.itemId] = (map[r.itemId] ?? 0) + r.received
-      }
-    }
-    setMonthlyOrderMap(map)
-    setNote(getDailyNote(b, date))
-    setSaved(false)
-  }, [date, router])
+    loadData(b, date)
+  }, [date, router, loadData])
 
   function updateClosing(itemId: string, value: number) {
     setRows(prev => prev.map(r => {
@@ -131,7 +142,10 @@ export default function DailyPage() {
 
   function updateNote(value: string) {
     setNote(value)
-    if (branch) saveDailyNote(branch, date, value)
+    if (noteTimer.current) clearTimeout(noteTimer.current)
+    noteTimer.current = setTimeout(() => {
+      if (branch) saveDailyNote(branch, date, value).catch(console.error)
+    }, 800)
   }
 
   // Compute the effective To Order for a row (same logic as render)
@@ -144,26 +158,31 @@ export default function DailyPage() {
     return r.manualOrder ? r.orderAmount : auto
   }
 
-  function handleSave() {
-    if (!branch) return
-    const iMap = Object.fromEntries(items.map(i => [i.id, i]))
-    const records: DailyStockRecord[] = rows.map(r => {
-      const item = iMap[r.itemId]
-      const isOrderMode = ORDER_MODE_IDS.has(r.itemId)
-      return {
-        id: makeId(),
-        date,
-        branch,
-        itemId: r.itemId,
-        openingStock: 0,
-        received: getDisplayOrder(r, item),
-        used: 0,
-        closingStock: isOrderMode ? 0 : r.closingStock,
-        ordered: r.ordered,
-      }
-    })
-    saveAllStockRecords(branch, records)
-    setSaved(true)
+  async function handleSave() {
+    if (!branch || saving) return
+    setSaving(true)
+    try {
+      const iMap = Object.fromEntries(items.map(i => [i.id, i]))
+      const records: DailyStockRecord[] = rows.map(r => {
+        const item = iMap[r.itemId]
+        const isOrderMode = ORDER_MODE_IDS.has(r.itemId)
+        return {
+          id: makeId(),
+          date,
+          branch,
+          itemId: r.itemId,
+          openingStock: 0,
+          received: getDisplayOrder(r, item),
+          used: 0,
+          closingStock: isOrderMode ? 0 : r.closingStock,
+          ordered: r.ordered,
+        }
+      })
+      await saveStockRecords(records)
+      setSaved(true)
+    } finally {
+      setSaving(false)
+    }
   }
 
   function handleGenerateOrderText() {
@@ -212,6 +231,12 @@ export default function DailyPage() {
   }
 
   if (!branch) return null
+  if (loading) return (
+    <div className="flex items-center justify-center h-64 text-slate-400 text-sm gap-2">
+      <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+      กำลังโหลด...
+    </div>
+  )
 
   const itemMap = Object.fromEntries(items.map(i => [i.id, i]))
 
@@ -252,11 +277,12 @@ export default function DailyPage() {
           />
           <button
             onClick={handleSave}
-            className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+            disabled={saving}
+            className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors"
           >
-            บันทึก
+            {saving ? 'กำลังบันทึก...' : 'บันทึก'}
           </button>
-          {saved && <span className="text-green-600 text-sm font-medium">✓ บันทึกแล้ว</span>}
+          {saved && !saving && <span className="text-green-600 text-sm font-medium">✓ บันทึกแล้ว</span>}
         </div>
       </div>
 
@@ -379,9 +405,10 @@ export default function DailyPage() {
       <div className="flex justify-end mt-2">
         <button
           onClick={handleSave}
-          className="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+          disabled={saving}
+          className="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors"
         >
-          บันทึกทั้งหมด
+          {saving ? 'กำลังบันทึก...' : 'บันทึกทั้งหมด'}
         </button>
       </div>
         </div>

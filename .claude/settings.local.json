@@ -10,7 +10,26 @@
       "PowerShell(npm --version)",
       "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); node --version; npm --version)",
       "Read(//c/Users/JAY168/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/24ff743b-9ea6-42c4-8145-ef0a1607df34/9747485f-01f9-4d3b-aecc-f8aec4e97f9c/skills/xlsx/**)",
-      "Bash(python scripts/extract-text \"C:/Users/JAY168/Downloads/Lasalle KPKP Stocks_ Daily P&L.xlsx\")"
+      "Bash(python scripts/extract-text \"C:/Users/JAY168/Downloads/Lasalle KPKP Stocks_ Daily P&L.xlsx\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(npx tsc *)",
+      "mcp__Claude_Preview__preview_start",
+      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"User\"\\); \\(Get-Command npm\\).Source)",
+      "Bash(vercel deploy *)",
+      "Bash(npx vercel *)",
+      "Bash(ls /c/Users/JAY168/AppData/Roaming/npm/ 2>/dev/null | head -20)",
+      "Bash(/c/Users/JAY168/AppData/Roaming/npm/vercel deploy *)",
+      "Read(//c/Program Files/nodejs//**)",
+      "Read(//c/Users/JAY168/AppData/Local/**)",
+      "Bash(PATH='/c/Program Files/nodejs:__TRACKED_VAR__' /c/Users/JAY168/AppData/Roaming/npm/vercel deploy --prod --force)",
+      "Bash(PATH='/c/Program Files/nodejs:__TRACKED_VAR__' node_modules/.bin/tsc --noEmit)",
+      "Bash(PATH='/c/Program Files/nodejs:__TRACKED_VAR__' node_modules/.bin/next build)",
+      "Bash(PATH='/c/Program Files/nodejs:__TRACKED_VAR__' npm install @libsql/client)",
+      "Bash(mkdir -p \"C:/Users/JAY168/Documents/GitHub/kpkp ls uw/.claude/worktrees/great-brown-692874/app/api/items/[id]\" && mkdir -p \"C:/Users/JAY168/Documents/GitHub/kpkp ls uw/.claude/worktrees/great-brown-692874/app/api/stock\" && mkdir -p \"C:/Users/JAY168/Documents/GitHub/kpkp ls uw/.claude/worktrees/great-brown-692874/app/api/pl\" && mkdir -p \"C:/Users/JAY168/Documents/GitHub/kpkp ls uw/.claude/worktrees/great-brown-692874/app/api/notes\" && mkdir -p \"C:/Users/JAY168/Documents/GitHub/kpkp ls uw/.claude/worktrees/great-brown-692874/app/api/migrate\")",
+      "Bash(PATH='/c/Program Files/nodejs:__TRACKED_VAR__' node -e ' *)",
+      "Bash(PATH='/c/Program Files/nodejs:__TRACKED_VAR__' npm run build)"
     ]
   }
 }

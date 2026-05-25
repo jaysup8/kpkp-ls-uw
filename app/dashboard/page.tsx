@@ -3,14 +3,11 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
-  getItems,
-  getStockRecords,
-  getDailyPL,
-  getDailyPLs,
   getSelectedBranch,
   calcMaeManee,
   calcTotalRevenue,
 } from '@/lib/storage'
+import { fetchItems, fetchStockRecords, fetchDailyPL, fetchDailyPLs } from '@/lib/api'
 import type { StockItem, DailyStockRecord, DailyPL, Branch } from '@/lib/types'
 import { BRANCH_NAMES } from '@/lib/types'
 
@@ -36,13 +33,18 @@ export default function DashboardPage() {
     const b = getSelectedBranch()
     if (!b) { router.push('/'); return }
     setBranch(b)
-    setItems(getItems())
-    setRecords(getStockRecords(b, date))
-    setPL(getDailyPL(b, date))
-    setBothBranchPLs({
-      lasalle: getDailyPLs('lasalle'),
-      udomsuk: getDailyPLs('udomsuk'),
-    })
+    Promise.all([
+      fetchItems(),
+      fetchStockRecords(b, date),
+      fetchDailyPL(b, date),
+      fetchDailyPLs('lasalle'),
+      fetchDailyPLs('udomsuk'),
+    ]).then(([allItems, recs, dailyPL, laPLs, udPLs]) => {
+      setItems(allItems)
+      setRecords(recs)
+      setPL(dailyPL)
+      setBothBranchPLs({ lasalle: laPLs, udomsuk: udPLs })
+    }).catch(console.error)
   }, [date, router])
 
   if (!branch) return null
