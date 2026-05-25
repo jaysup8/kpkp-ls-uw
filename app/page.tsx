@@ -1,4 +1,5 @@
 'use client'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { setSelectedBranch } from '@/lib/storage'
 import type { Branch } from '@/lib/types'
@@ -44,9 +45,19 @@ export default function BranchSelectPage() {
     <div className="flex flex-col items-center justify-center min-h-[76vh]">
       {/* Header */}
       <div className="text-center mb-12">
-        <div className="text-6xl mb-5">🍽️</div>
-        <h1 className="text-4xl font-bold text-slate-800 tracking-tight">KPKP Restaurant</h1>
-        <p className="text-slate-500 mt-3 text-lg">กรุณาเลือกสาขา · Select Branch</p>
+        <div className="flex justify-center mb-5">
+          <Image
+            src="/icon-512.png"
+            alt="ก็เพราะ กะเพรา Thai Basil"
+            width={140}
+            height={140}
+            className="rounded-full shadow-lg"
+            priority
+          />
+        </div>
+        <h1 className="text-4xl font-bold text-slate-800 tracking-tight">ก็เพราะ กะเพรา</h1>
+        <p className="text-slate-500 mt-1 text-base">Thai Basil · KPKP Restaurant</p>
+        <p className="text-slate-400 mt-3 text-lg">กรุณาเลือกสาขา · Select Branch</p>
       </div>
 
       {/* Branch cards */}
@@ -60,8 +71,14 @@ export default function BranchSelectPage() {
               className={`bg-white rounded-2xl border-2 p-8 text-left hover:shadow-xl transition-all duration-200 cursor-pointer group ${c.card}`}
             >
               {/* Icon */}
-              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mb-5 ${c.icon}`}>
-                🍽️
+              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-5 overflow-hidden ${c.icon}`}>
+                <Image
+                  src="/icon-512.png"
+                  alt="logo"
+                  width={56}
+                  height={56}
+                  className="rounded-xl"
+                />
               </div>
 
               {/* Name */}
