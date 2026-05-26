@@ -256,16 +256,16 @@ export default function DailyPage() {
           </div>
           <p className="text-xs text-slate-400">Daily Stock Entry</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleGenerateOrderText}
-            className="border border-slate-300 bg-white text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:border-emerald-400 hover:text-emerald-600 transition-colors"
+            className="border border-slate-300 bg-white text-slate-700 px-3 py-2 rounded-lg text-sm font-medium hover:border-emerald-400 hover:text-emerald-600 transition-colors"
           >
-            📝 สร้างข้อความสั่งซื้อ
+            📝 <span className="hidden sm:inline">สร้างข้อความสั่งซื้อ</span><span className="sm:hidden">สั่งซื้อ</span>
           </button>
           <button
             onClick={openPaste}
-            className="border border-slate-300 bg-white text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:border-blue-400 hover:text-blue-600 transition-colors"
+            className="border border-slate-300 bg-white text-slate-700 px-3 py-2 rounded-lg text-sm font-medium hover:border-blue-400 hover:text-blue-600 transition-colors"
           >
             📋 วางข้อความ
           </button>
@@ -273,20 +273,32 @@ export default function DailyPage() {
             type="date"
             value={date}
             onChange={e => setDate(e.target.value)}
-            className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white shadow-sm"
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white shadow-sm"
           />
           <button
             onClick={handleSave}
             disabled={saving}
-            className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors"
+            className="hidden sm:block bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors"
           >
             {saving ? 'กำลังบันทึก...' : 'บันทึก'}
           </button>
-          {saved && !saving && <span className="text-green-600 text-sm font-medium">✓ บันทึกแล้ว</span>}
+          {saved && !saving && <span className="hidden sm:inline text-green-600 text-sm font-medium">✓ บันทึกแล้ว</span>}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+      {/* Mobile sticky save bar */}
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-slate-200 px-4 py-3 flex items-center gap-3 shadow-lg">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex-1 bg-blue-600 text-white py-3 rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 transition-colors"
+        >
+          {saving ? 'กำลังบันทึก...' : '💾 บันทึก'}
+        </button>
+        {saved && !saving && <span className="text-green-600 text-sm font-medium shrink-0">✓ บันทึกแล้ว</span>}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 pb-20 sm:pb-0">
         <div>
 
       {CATEGORIES.map(cat => {
@@ -302,20 +314,20 @@ export default function DailyPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-xs">
-                    <th className="text-left px-4 py-3 font-medium text-slate-600 min-w-[160px]">รายการ</th>
-                    <th className="text-left px-4 py-3 font-medium text-slate-600 w-16">หน่วย</th>
-                    <th className="text-center px-4 py-3 font-medium text-slate-600 w-16">Par</th>
-                    <th className="text-center px-4 py-3 font-medium text-slate-600 w-32">
-                      คงเหลือ<br /><span className="font-normal opacity-60">Closing Stock</span>
+                    <th className="text-left px-2 sm:px-4 py-2 sm:py-3 font-medium text-slate-600 min-w-[120px] sm:min-w-[160px]">รายการ</th>
+                    <th className="hidden sm:table-cell text-left px-4 py-3 font-medium text-slate-600 w-16">หน่วย</th>
+                    <th className="hidden sm:table-cell text-center px-4 py-3 font-medium text-slate-600 w-16">Par</th>
+                    <th className="text-center px-2 sm:px-4 py-2 sm:py-3 font-medium text-slate-600 w-24 sm:w-32">
+                      คงเหลือ<br /><span className="font-normal opacity-60">Closing</span>
                     </th>
-                    <th className="text-center px-4 py-3 font-medium text-slate-600 w-32">
-                      ต้องสั่งเพิ่ม<br /><span className="font-normal opacity-60">To Order</span>
+                    <th className="text-center px-2 sm:px-4 py-2 sm:py-3 font-medium text-slate-600 w-24 sm:w-32">
+                      สั่งเพิ่ม<br /><span className="font-normal opacity-60">To Order</span>
                     </th>
-                    <th className="text-center px-4 py-3 font-medium text-slate-600 w-32">
+                    <th className="hidden sm:table-cell text-center px-4 py-3 font-medium text-slate-600 w-32">
                       ใช้ไป (เดือนนี้)<br /><span className="font-normal opacity-60">Monthly Used</span>
                     </th>
-                    <th className="text-center px-2 py-3 font-medium text-slate-600 w-12" title="สั่งซื้อแล้ว">
-                      ✓<br /><span className="font-normal opacity-60 text-[10px]">Ordered</span>
+                    <th className="text-center px-2 py-2 sm:py-3 font-medium text-slate-600 w-10 sm:w-12" title="สั่งซื้อแล้ว">
+                      ✓<br /><span className="font-normal opacity-60 text-[10px]">Done</span>
                     </th>
                   </tr>
                 </thead>
@@ -339,15 +351,15 @@ export default function DailyPage() {
                         key={item.id}
                         className={`border-b border-slate-100 ${row.ordered ? 'bg-emerald-50/60' : isLow ? 'bg-red-50' : idx % 2 === 0 ? '' : 'bg-slate-50/50'}`}
                       >
-                        <td className="px-4 py-2">
-                          <div className="font-medium text-slate-800">{item.nameTh}</div>
-                          <div className="text-xs text-slate-400">{item.nameEn}</div>
+                        <td className="px-2 sm:px-4 py-1.5 sm:py-2">
+                          <div className="font-medium text-slate-800 text-sm">{item.nameTh}</div>
+                          <div className="text-xs text-slate-400 hidden sm:block">{item.nameEn}</div>
                         </td>
-                        <td className="px-4 py-2 text-slate-500 text-xs">{item.unit}</td>
-                        <td className="px-4 py-2 text-center text-slate-500">{(item.parLevels?.[branch] ?? 0) || '—'}</td>
+                        <td className="hidden sm:table-cell px-4 py-2 text-slate-500 text-xs">{item.unit}</td>
+                        <td className="hidden sm:table-cell px-4 py-2 text-center text-slate-500">{(item.parLevels?.[branch] ?? 0) || '—'}</td>
 
                         {/* คงเหลือ column */}
-                        <td className="px-2 py-1.5">
+                        <td className="px-1 sm:px-2 py-1.5">
                           {isOrderMode ? (
                             <span className="block text-center text-slate-300 text-sm">—</span>
                           ) : (
@@ -356,19 +368,19 @@ export default function DailyPage() {
                               value={row.closingStock || ''}
                               placeholder="0"
                               onChange={e => updateClosing(item.id, parseFloat(e.target.value) || 0)}
-                              className={`w-full text-center border rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${isLow ? 'border-red-300 bg-red-50' : 'border-slate-200'}`}
+                              className={`w-full text-center border rounded-lg px-1 sm:px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${isLow ? 'border-red-300 bg-red-50' : 'border-slate-200'}`}
                             />
                           )}
                         </td>
 
-                        {/* ต้องสั่งเพิ่ม column — editable for all items */}
-                        <td className="px-2 py-1.5">
+                        {/* ต้องสั่งเพิ่ม column */}
+                        <td className="px-1 sm:px-2 py-1.5">
                           <input
                             type="number"
                             value={displayOrder || ''}
                             placeholder="0"
                             onChange={e => updateOrder(item.id, parseFloat(e.target.value) || 0)}
-                            className={`w-full text-center border rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 font-medium ${
+                            className={`w-full text-center border rounded-lg px-1 sm:px-2 py-2 text-sm focus:outline-none focus:ring-2 font-medium ${
                               isOrderMode
                                 ? 'border-emerald-300 bg-emerald-50 focus:ring-emerald-400'
                                 : 'border-slate-200 bg-white focus:ring-blue-400'
@@ -376,19 +388,19 @@ export default function DailyPage() {
                           />
                         </td>
 
-                        {/* ใช้ไป column */}
-                        <td className="px-4 py-2 text-center">
+                        {/* ใช้ไป column — hidden on mobile */}
+                        <td className="hidden sm:table-cell px-4 py-2 text-center">
                           <span className="font-semibold text-slate-700">{monthlyUsed || '—'}</span>
                           {isLow && <span className="ml-1 text-xs">⚠️</span>}
                         </td>
 
                         {/* Ordered checkbox */}
-                        <td className="px-2 py-2 text-center">
+                        <td className="px-1 sm:px-2 py-2 text-center">
                           <input
                             type="checkbox"
                             checked={row.ordered}
                             onChange={() => toggleOrdered(item.id)}
-                            className="w-4 h-4 accent-emerald-600 cursor-pointer"
+                            className="w-5 h-5 accent-emerald-600 cursor-pointer"
                             title={row.ordered ? 'สั่งแล้ว' : 'ยังไม่ได้สั่ง'}
                           />
                         </td>

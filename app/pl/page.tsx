@@ -150,24 +150,24 @@ export default function PLPage() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-2xl font-bold text-slate-800">บันทึกรายได้ / P&L</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-800">บันทึกรายได้ / P&L</h1>
             <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${BRANCH_BADGE[branch]}`}>
               {BRANCH_NAMES[branch]}
             </span>
           </div>
           <p className="text-xs text-slate-400">Daily Sales & Profit/Loss</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {view === 'day' && (
             <>
               <input
                 type="date"
                 value={date}
                 onChange={e => setDate(e.target.value)}
-                className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white shadow-sm"
+                className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white shadow-sm"
               />
               <button
                 onClick={handleSave}
@@ -426,18 +426,18 @@ export default function PLPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-xs">
-                <th className="text-left px-4 py-3 font-medium text-slate-600">วันที่</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600">เป้าหมาย</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600">เงินสด</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600">แม่มณี</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600">Lineman</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600">Grab</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600">Robin</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600">Shopee</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600">รวม</th>
-                <th className="text-right px-4 py-3 font-medium text-red-600">รายจ่าย</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600">กำไรสุทธิ</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600">ส่วนต่าง</th>
+                <th className="text-left px-3 py-2 sm:px-4 sm:py-3 font-medium text-slate-600">วันที่</th>
+                <th className="hidden md:table-cell text-right px-4 py-3 font-medium text-slate-600">เป้าหมาย</th>
+                <th className="hidden md:table-cell text-right px-4 py-3 font-medium text-slate-600">เงินสด</th>
+                <th className="hidden md:table-cell text-right px-4 py-3 font-medium text-slate-600">แม่มณี</th>
+                <th className="hidden lg:table-cell text-right px-4 py-3 font-medium text-slate-600">Lineman</th>
+                <th className="hidden lg:table-cell text-right px-4 py-3 font-medium text-slate-600">Grab</th>
+                <th className="hidden lg:table-cell text-right px-4 py-3 font-medium text-slate-600">Robin</th>
+                <th className="hidden lg:table-cell text-right px-4 py-3 font-medium text-slate-600">Shopee</th>
+                <th className="text-right px-3 py-2 sm:px-4 sm:py-3 font-medium text-slate-600">รวม</th>
+                <th className="hidden sm:table-cell text-right px-4 py-3 font-medium text-red-600">รายจ่าย</th>
+                <th className="text-right px-3 py-2 sm:px-4 sm:py-3 font-medium text-slate-600">กำไร</th>
+                <th className="hidden sm:table-cell text-right px-4 py-3 font-medium text-slate-600">ส่วนต่าง</th>
               </tr>
             </thead>
             <tbody>
@@ -449,20 +449,20 @@ export default function PLPage() {
                 const d = total - h.targetRevenue
                 return (
                   <tr key={h.date} className={`border-b border-slate-100 ${idx % 2 === 0 ? '' : 'bg-slate-50/50'}`}>
-                    <td className="px-4 py-2 font-medium">{h.date}</td>
-                    <td className="px-4 py-2 text-right text-slate-500">฿{h.targetRevenue.toLocaleString()}</td>
-                    <td className="px-4 py-2 text-right">฿{h.cashSales.toLocaleString()}</td>
-                    <td className="px-4 py-2 text-right">฿{mm.toLocaleString()}</td>
-                    <td className="px-4 py-2 text-right">฿{h.linemanSales.toLocaleString()}</td>
-                    <td className="px-4 py-2 text-right">฿{h.grabSales.toLocaleString()}</td>
-                    <td className="px-4 py-2 text-right">฿{h.robinhoodSales.toLocaleString()}</td>
-                    <td className="px-4 py-2 text-right">฿{h.shopeeSales.toLocaleString()}</td>
-                    <td className="px-4 py-2 text-right font-semibold">฿{total.toLocaleString()}</td>
-                    <td className="px-4 py-2 text-right text-red-600">{exp > 0 ? `฿${exp.toLocaleString()}` : '—'}</td>
-                    <td className={`px-4 py-2 text-right font-semibold ${net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <td className="px-3 py-2 sm:px-4 font-medium text-xs sm:text-sm">{h.date}</td>
+                    <td className="hidden md:table-cell px-4 py-2 text-right text-slate-500">฿{h.targetRevenue.toLocaleString()}</td>
+                    <td className="hidden md:table-cell px-4 py-2 text-right">฿{h.cashSales.toLocaleString()}</td>
+                    <td className="hidden md:table-cell px-4 py-2 text-right">฿{mm.toLocaleString()}</td>
+                    <td className="hidden lg:table-cell px-4 py-2 text-right">฿{h.linemanSales.toLocaleString()}</td>
+                    <td className="hidden lg:table-cell px-4 py-2 text-right">฿{h.grabSales.toLocaleString()}</td>
+                    <td className="hidden lg:table-cell px-4 py-2 text-right">฿{h.robinhoodSales.toLocaleString()}</td>
+                    <td className="hidden lg:table-cell px-4 py-2 text-right">฿{h.shopeeSales.toLocaleString()}</td>
+                    <td className="px-3 py-2 sm:px-4 text-right font-semibold text-xs sm:text-sm">฿{total.toLocaleString()}</td>
+                    <td className="hidden sm:table-cell px-4 py-2 text-right text-red-600">{exp > 0 ? `฿${exp.toLocaleString()}` : '—'}</td>
+                    <td className={`px-3 py-2 sm:px-4 text-right font-semibold text-xs sm:text-sm ${net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       ฿{net.toLocaleString()}
                     </td>
-                    <td className={`px-4 py-2 text-right font-semibold ${d >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <td className={`hidden sm:table-cell px-4 py-2 text-right font-semibold ${d >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {d >= 0 ? '+' : ''}฿{d.toLocaleString()}
                     </td>
                   </tr>
@@ -707,10 +707,10 @@ function Field({
       ? 'border-blue-300 focus:ring-blue-400 bg-blue-50'
       : 'border-slate-200 focus:ring-blue-400'
   return (
-    <div className="flex items-center gap-3">
-      <div className="w-36 shrink-0">
-        <p className={`text-sm font-medium ${labelColor}`}>{label}</p>
-        <p className="text-xs text-slate-400">{sub}</p>
+    <div className="flex items-center gap-2 sm:gap-3">
+      <div className="w-24 sm:w-36 shrink-0">
+        <p className={`text-xs sm:text-sm font-medium ${labelColor}`}>{label}</p>
+        <p className="text-[10px] sm:text-xs text-slate-400 hidden sm:block">{sub}</p>
       </div>
       <div className="relative flex-1">
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">฿</span>
@@ -719,7 +719,7 @@ function Field({
           value={value || ''}
           placeholder="0"
           onChange={e => onChange(parseFloat(e.target.value) || 0)}
-          className={`w-full border rounded-lg pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-2 ${inputStyle}`}
+          className={`w-full border rounded-lg pl-7 pr-3 py-2.5 sm:py-2 text-sm focus:outline-none focus:ring-2 ${inputStyle}`}
         />
       </div>
     </div>

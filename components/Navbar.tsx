@@ -15,25 +15,27 @@ const NAV_LINKS = [
   { href: '/daily',     label: 'บันทึกสต็อก' },
   { href: '/pl',        label: 'รายได้ / P&L' },
   { href: '/items',     label: 'จัดการรายการ' },
-  { href: '/settings',  label: '⚙️' },
+  { href: '/settings',  label: '⚙️ ตั้งค่า' },
 ]
 
 export default function Navbar() {
   const path = usePathname()
   const router = useRouter()
   const [branch, setBranch] = useState<Branch | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
     setBranch(getSelectedBranch())
+    setMenuOpen(false)
   }, [path])
 
   const style = branch ? BRANCH_STYLE[branch] : null
 
   return (
-    <nav className={`${style ? style.bg : 'bg-slate-800'} text-white shadow-md transition-colors duration-300`}>
-      <div className="max-w-7xl mx-auto px-6 h-14 flex items-center gap-4">
+    <nav className={`${style ? style.bg : 'bg-slate-800'} text-white shadow-md transition-colors duration-300 relative z-40`}>
+      <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-3">
         {/* Logo */}
-        <Link href="/" className="font-bold text-lg shrink-0">
+        <Link href="/" className="font-bold text-lg shrink-0" onClick={() => setMenuOpen(false)}>
           🍽️ KPKP
         </Link>
 
@@ -41,7 +43,7 @@ export default function Navbar() {
           <>
             {/* Branch badge + switch */}
             <button
-              onClick={() => router.push('/')}
+              onClick={() => { setMenuOpen(false); router.push('/') }}
               className="flex items-center gap-2 bg-white/15 hover:bg-white/25 transition-colors px-3 py-1.5 rounded-lg text-sm shrink-0"
               title="เปลี่ยนสาขา"
             >
@@ -50,8 +52,8 @@ export default function Navbar() {
               <span className="text-white/50 text-xs hidden sm:inline">เปลี่ยน ↗</span>
             </button>
 
-            {/* Nav links */}
-            <div className="flex items-center gap-0.5 ml-2">
+            {/* Desktop nav links */}
+            <div className="hidden md:flex items-center gap-0.5 ml-2">
               {NAV_LINKS.map(l => (
                 <Link
                   key={l.href}
@@ -66,11 +68,57 @@ export default function Navbar() {
                 </Link>
               ))}
             </div>
+
+            {/* Mobile hamburger */}
+            <button
+              className="md:hidden ml-auto p-2 rounded-lg hover:bg-white/15 transition-colors"
+              onClick={() => setMenuOpen(o => !o)}
+              aria-label="เมนู"
+            >
+              {menuOpen ? (
+                <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <line x1="5" y1="5" x2="17" y2="17"/><line x1="17" y1="5" x2="5" y2="17"/>
+                </svg>
+              ) : (
+                <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <line x1="3" y1="6"  x2="19" y2="6"/>
+                  <line x1="3" y1="11" x2="19" y2="11"/>
+                  <line x1="3" y1="16" x2="19" y2="16"/>
+                </svg>
+              )}
+            </button>
           </>
         ) : (
           <span className="text-white/50 text-sm">กรุณาเลือกสาขา</span>
         )}
       </div>
+
+      {/* Mobile dropdown */}
+      {menuOpen && branch && style && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="md:hidden fixed inset-0 top-14 bg-black/30 z-30"
+            onClick={() => setMenuOpen(false)}
+          />
+          <div className={`md:hidden absolute top-full left-0 right-0 z-40 ${style.bg} border-t border-white/10 shadow-2xl`}>
+            {NAV_LINKS.map(l => (
+              <Link
+                key={l.href}
+                href={l.href}
+                onClick={() => setMenuOpen(false)}
+                className={`flex items-center px-5 py-4 text-base border-b border-white/10 transition-colors ${
+                  path === l.href
+                    ? 'bg-white/20 font-semibold'
+                    : 'text-white/85 hover:bg-white/10'
+                }`}
+              >
+                {l.label}
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
     </nav>
   )
 }
