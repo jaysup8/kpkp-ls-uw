@@ -24,7 +24,7 @@ export default function LoginPage() {
       })
 
       if (res.ok) {
-        router.push('/')
+        window.location.href = '/'
       } else {
         setError('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง')
       }

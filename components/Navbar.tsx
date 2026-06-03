@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { getSelectedBranch } from '@/lib/storage'
 import type { Branch } from '@/lib/types'
@@ -30,7 +30,6 @@ function LogoutIcon() {
 
 export default function Navbar() {
   const path = usePathname()
-  const router = useRouter()
   const [branch, setBranch] = useState<Branch | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -44,7 +43,7 @@ export default function Navbar() {
   async function handleLogout() {
     setMenuOpen(false)
     await fetch('/api/auth/logout', { method: 'POST' })
-    router.push('/login')
+    window.location.href = '/login'
   }
 
   return (
