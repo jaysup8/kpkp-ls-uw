@@ -58,7 +58,7 @@ export default function Navbar() {
           <>
             {/* Branch badge + switch */}
             <button
-              onClick={() => { setMenuOpen(false); router.push('/') }}
+              onClick={() => { setMenuOpen(false); window.location.href = '/' }}
               className="flex items-center gap-2 bg-white/15 hover:bg-white/25 transition-colors px-3 py-1.5 rounded-lg text-sm shrink-0"
               title="เปลี่ยนสาขา"
             >
